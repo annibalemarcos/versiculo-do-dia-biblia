@@ -1,0 +1,260 @@
+# ============================================================
+# LARZUS APPS - MONOREPO
+# Android + FastAPI/Python + React/Vite
+# ============================================================
+
+
+# ------------------------------------------------------------
+# SECRETS / ENVIRONMENT
+# ------------------------------------------------------------
+
+.env
+.env.*
+!.env.example
+
+secrets/
+**/secrets/
+
+service-account*.json
+firebase-admin*.json
+credentials*.json
+
+# Chaves e certificados
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+
+# Android signing
+keystore.properties
+
+
+# ------------------------------------------------------------
+# FIREBASE / GOOGLE
+# ------------------------------------------------------------
+
+google-services.json
+**/google-services.json
+
+# Credenciais Google/Firebase privadas
+service-account*.json
+**/service-account*.json
+firebase-admin*.json
+**/firebase-admin*.json
+credentials*.json
+**/credentials*.json
+
+
+# ------------------------------------------------------------
+# DATABASES / LOCAL DATA
+# ------------------------------------------------------------
+
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.sqlite-journal
+*.sqlite3-journal
+
+# Dumps e backups
+*.sql
+*.dump
+*.backup
+
+
+# ------------------------------------------------------------
+# PYTHON / FASTAPI
+# ------------------------------------------------------------
+
+__pycache__/
+**/__pycache__/
+
+*.py[cod]
+*$py.class
+
+.pytest_cache/
+**/.pytest_cache/
+
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python build artifacts
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Python tooling
+.python_history
+
+
+# ------------------------------------------------------------
+# ANDROID / GRADLE / KOTLIN
+# ------------------------------------------------------------
+
+*.iml
+
+.gradle/
+**/.gradle/
+
+.kotlin/
+**/.kotlin/
+
+local.properties
+**/local.properties
+
+# Build directories
+/build/
+**/build/
+
+captures/
+**/captures/
+
+.externalNativeBuild/
+**/.externalNativeBuild/
+
+.cxx/
+**/.cxx/
+
+# APK / Android bundles
+*.apk
+*.aab
+*.apks
+
+# Mapping / native symbols generated for releases
+mapping.txt
+
+# Default debug keystore
+debug.keystore
+**/debug.keystore
+
+
+# ------------------------------------------------------------
+# INTELLIJ / ANDROID STUDIO
+# ------------------------------------------------------------
+
+.idea/
+
+# Caso futuramente queira versionar parte do .idea,
+# substitua a regra acima por regras específicas.
+
+
+# ------------------------------------------------------------
+# NODE / REACT / VITE
+# ------------------------------------------------------------
+
+node_modules/
+**/node_modules/
+
+# Vite / frontend builds
+dist/
+**/dist/
+
+.vite/
+**/.vite/
+
+# Node logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Package manager caches
+.npm/
+.pnpm-store/
+
+# Local frontend environment files já são cobertos por .env.*
+
+
+# ------------------------------------------------------------
+# TEST / COVERAGE
+# ------------------------------------------------------------
+
+coverage/
+**/coverage/
+
+.nyc_output/
+
+test-results/
+**/test-results/
+
+
+# ------------------------------------------------------------
+# LOGS / TEMPORARY FILES
+# ------------------------------------------------------------
+
+*.log
+
+logs/
+**/logs/
+
+tmp/
+temp/
+
+*.tmp
+*.temp
+
+*.swp
+*.swo
+
+*~
+~$*
+
+
+# ------------------------------------------------------------
+# OPERATING SYSTEM
+# ------------------------------------------------------------
+
+.DS_Store
+**/.DS_Store
+
+Thumbs.db
+Desktop.ini
+
+
+# ------------------------------------------------------------
+# VS CODE
+# ------------------------------------------------------------
+
+.vscode/
+
+# Se futuramente quisermos compartilhar configurações do VS Code,
+# podemos liberar arquivos específicos.
+
+
+# ------------------------------------------------------------
+# RAILWAY / LOCAL TOOLING
+# ------------------------------------------------------------
+
+# Arquivos locais do Railway CLI, se forem criados
+.railway/
+
+
+# ------------------------------------------------------------
+# IMPORTANTES - DEVEM CONTINUAR VERSIONADOS
+# ------------------------------------------------------------
+
+# NÃO ignorar:
+#
+# .python-version
+# runtime.txt
+# nixpacks.toml
+# requirements.txt
+# alembic.ini
+# alembic/
+# docker-compose.yml
+# package.json
+# package-lock.json
+# gradle files
+# .env.example
