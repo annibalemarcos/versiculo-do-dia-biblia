@@ -143,56 +143,29 @@ interface ThemeEmotionDao {
 
 @Dao
 interface SyncQueueDao {
-    @Query("SELECT * FROM sync_queue WHERE userId = :userId OR userId = 'guest' ORDER BY createdAt ASC")
+    @Query("SELECT * FROM sync_queue WHERE userId = :userId ORDER BY createdAt ASC")
     suspend fun getAllPending(userId: String): List<SyncQueueEntity>
 
-    @Query("SELECT COUNT(*) FROM sync_queue WHERE userId = :userId OR userId = 'guest'")
-    fun getPendingCount(userId: String): Flow<Int>
-
-    @Query("SELECT COUNT(*) FROM sync_queue WHERE userId = :userId OR userId = 'guest'")
-    suspend fun getPendingCountDirect(userId: String): Int
+    @Query("SELECT * FROM sync_queue ORDER BY createdAt ASC")
+    suspend fun getAllPendingGlobal(): List<SyncQueueEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSyncItem(item: SyncQueueEntity)
-
-    @Query("UPDATE sync_queue SET syncStatus = :status, retryCount = :retryCount, lastError = :lastError WHERE id = :id")
-    suspend fun updateSyncItemStatus(id: Long, status: String, retryCount: Int, lastError: String?)
+    suspend fun insertSyncItem(item: SyncQueueEntity): Long
 
     @Query("DELETE FROM sync_queue WHERE id = :id")
     suspend fun deleteSyncItem(id: Long)
 
     @Query("DELETE FROM sync_queue WHERE userId = :userId")
     suspend fun clearUserQueue(userId: String)
-}
 
-@Dao
-interface TicketDao {
-    @Query("SELECT * FROM support_tickets WHERE userId = :userId ORDER BY updatedAt DESC")
-    fun getTickets(userId: String): Flow<List<TicketEntity>>
+    @Query("UPDATE sync_queue SET retryCount = retryCount + 1 WHERE id = :id")
+    suspend fun incrementRetryCount(id: Long)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertTickets(tickets: List<TicketEntity>)
+    @Query("SELECT COUNT(*) FROM sync_queue WHERE userId = :userId")
+    suspend fun getPendingCount(userId: String): Int
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertTicket(ticket: TicketEntity)
-
-    @Query("SELECT * FROM support_messages WHERE ticketId = :ticketId ORDER BY createdAt ASC")
-    fun getMessages(ticketId: String): Flow<List<TicketMessageEntity>>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertMessages(messages: List<TicketMessageEntity>)
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertMessage(message: TicketMessageEntity)
-}
-
-@Dao
-interface SyncMetadataDao {
-    @Query("SELECT value FROM sync_metadata WHERE `key` = :key")
-    suspend fun getMetadata(key: String): String?
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun setMetadata(metadata: SyncMetadataEntity)
+    @Query("SELECT COUNT(*) FROM sync_queue")
+    suspend fun getTotalPendingCount(): Int
 }
 
 @Dao
@@ -239,10 +212,7 @@ interface NotificationDao {
         ThemeEntity::class,
         EmotionEntity::class,
         SyncQueueEntity::class,
-        NotificationEntity::class,
-        TicketEntity::class,
-        TicketMessageEntity::class,
-        SyncMetadataEntity::class
+        NotificationEntity::class
     ],
     version = 4,
     exportSchema = false
@@ -256,6 +226,21 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun themeEmotionDao(): ThemeEmotionDao
     abstract fun syncQueueDao(): SyncQueueDao
     abstract fun notificationDao(): NotificationDao
-    abstract fun ticketDao(): TicketDao
-    abstract fun syncMetadataDao(): SyncMetadataDao
+
+    companion object {
+        @Volatile
+        private var INSTANCE: AppDatabase? = null
+
+        fun getInstance(context: android.content.Context): AppDatabase {
+            return INSTANCE ?: synchronized(this) {
+                val instance = androidx.room.Room.databaseBuilder(
+                    context.applicationContext,
+                    AppDatabase::class.java,
+                    "biblia_database.db"
+                ).fallbackToDestructiveMigration().build()
+                INSTANCE = instance
+                instance
+            }
+        }
+    }
 }

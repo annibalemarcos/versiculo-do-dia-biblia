@@ -22,7 +22,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.BuildConfig
@@ -49,8 +48,6 @@ fun SettingsProfileScreen(
     val remoteConfig by viewModel.remoteConfig.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
     val isNotificationsEnabled by viewModel.preferencesManager.isNotificationsEnabled.collectAsState(initial = true)
-    val isOnline by viewModel.isOnline.collectAsState()
-    val pendingSyncCount by viewModel.pendingSyncCount.collectAsState()
 
     val (userName, userEmail, isPremium) = userProfile
     val isLoggedIn = !userEmail.isNullOrBlank()
@@ -220,20 +217,12 @@ fun SettingsProfileScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Gold500.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (!isOnline) Icons.Default.CloudOff else Icons.Default.CloudDone,
-                                contentDescription = null,
-                                tint = if (!isOnline) MaterialTheme.colorScheme.error else Gold500,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.CloudSync,
+                            contentDescription = null,
+                            tint = Gold500,
+                            modifier = Modifier.size(24.dp)
+                        )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -241,63 +230,50 @@ fun SettingsProfileScreen(
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
-                            val statusText = when {
-                                syncState is com.example.data.sync.SyncState.Syncing -> "Sincronizando dados com a nuvem..."
-                                !isOnline -> "Modo offline ativo. Alterações salvas localmente e enviadas automaticamente ao reconectar."
-                                pendingSyncCount > 0 -> "$pendingSyncCount ${if (pendingSyncCount == 1) "alteração pendente salva" else "alterações pendentes salvas"} localmente."
-                                syncState is com.example.data.sync.SyncState.Success -> "✓ Tudo atualizado"
-                                else -> "✓ Tudo atualizado"
-                            }
                             Text(
-                                text = statusText,
+                                text = syncState.getDisplayMessage(),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = when {
-                                    !isOnline -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    pendingSyncCount > 0 -> Gold500
-                                    syncState is com.example.data.sync.SyncState.Success -> Color(0xFF10B981)
+                                color = when (syncState) {
+                                    is com.example.data.sync.SyncState.Success -> Gold500
+                                    is com.example.data.sync.SyncState.Error -> MaterialTheme.colorScheme.error
                                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                                 }
                             )
                         }
                     }
 
-                    OutlinedButton(
+                    Button(
                         onClick = {
                             viewModel.triggerManualSync { success, msg ->
-                                Toast.makeText(context, if (success) "✓ Tudo atualizado" else msg, Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                             }
                         },
                         enabled = syncState !is com.example.data.sync.SyncState.Syncing,
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("sync_now_button")
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isLoggedIn) Gold500 else MaterialTheme.colorScheme.primary,
+                            contentColor = if (isLoggedIn) Navy900 else MaterialTheme.colorScheme.onPrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         if (syncState is com.example.data.sync.SyncState.Syncing) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
+                                modifier = Modifier.size(18.dp),
+                                color = if (isLoggedIn) Navy900 else MaterialTheme.colorScheme.onPrimary,
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Sincronizando...")
                         } else {
                             Icon(
-                                imageVector = Icons.Default.Refresh,
+                                imageVector = Icons.Default.Sync,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Atualizar agora")
+                            Text("Sincronizar Agora")
                         }
                     }
-
-                    Text(
-                        text = "A sincronização ocorre automaticamente e de forma resiliente em segundo plano.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
             }
 

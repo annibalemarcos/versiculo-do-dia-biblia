@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.room.Room
+import com.example.BibleApplication
 import com.example.core.ads.AdConfig
 import com.example.core.ads.AdProvider
 import com.example.core.analytics.AnalyticsTracker
@@ -14,13 +15,11 @@ import com.example.core.config.AppConfig
 import com.example.core.datastore.AppThemeMode
 import com.example.core.datastore.PreferencesManager
 import com.example.core.datastore.TextScale
-import com.example.core.network.NetworkMonitor
 import com.example.data.local.db.*
 import com.example.data.remote.*
 import com.example.data.repository.*
 import com.example.data.sync.SyncManager
 import com.example.data.sync.SyncState
-import com.example.data.sync.WorkManagerSyncScheduler
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -28,64 +27,41 @@ import kotlinx.coroutines.launch
 @OptIn(FlowPreview::class)
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    val preferencesManager = PreferencesManager(application)
+    private val app = application as? BibleApplication
 
-    val database: AppDatabase = Room.databaseBuilder(
-        application,
-        AppDatabase::class.java,
-        "biblia_database.db"
-    ).fallbackToDestructiveMigration().build()
-
-    val tokenManager = TokenManager(
-        preferencesManager = preferencesManager,
-        onRefreshTokenCall = { refreshTok ->
-            try {
-                val res = apiService.refreshToken(refreshTok)
-                if (res.isSuccessful && res.body()?.data != null) {
-                    val data = res.body()!!.data!!
-                    Pair(data.accessToken, data.refreshToken)
-                } else {
-                    null
-                }
-            } catch (e: Exception) {
-                null
-            }
-        }
-    )
-
-    private var currentAuthToken: String? = null
-
-    val apiService: BibleApiService = ApiClient.create(
+    val preferencesManager = app?.preferencesManager ?: PreferencesManager(application)
+    val database: AppDatabase = app?.database ?: AppDatabase.getInstance(application)
+    val tokenManager = app?.tokenManager ?: TokenManager(preferencesManager = preferencesManager)
+    val apiService: BibleApiService = app?.apiService ?: ApiClient.create(
         baseUrl = AppConfig.getApiBaseUrl(),
-        tokenProvider = { currentAuthToken }
+        tokenProvider = { tokenManager.getAccessTokenSync() }
     )
-
-    val configRepository = ConfigRepository(apiService, preferencesManager)
+    val configRepository = app?.configRepository ?: ConfigRepository(apiService, preferencesManager)
     val bibleRepository = BibleRepository(database, apiService)
-    val favoriteRepository = FavoriteRepository(
+    val favoriteRepository = app?.favoriteRepository ?: FavoriteRepository(
         favoriteDao = database.favoriteDao(),
         syncQueueDao = database.syncQueueDao(),
         apiService = apiService,
         tokenManager = tokenManager,
-        preferencesManager = preferencesManager
+        preferencesManager = preferencesManager,
+        context = application
     )
-    val historyRepository = HistoryRepository(
+    val historyRepository = app?.historyRepository ?: HistoryRepository(
         historyDao = database.historyDao(),
         apiService = apiService,
         tokenManager = tokenManager,
         preferencesManager = preferencesManager
     )
-    val devotionalRepository = DevotionalRepository(database.devotionalDao())
-    val authRepository = AuthRepository(apiService, tokenManager, preferencesManager, database)
-    val supportRepository = SupportRepository(apiService)
-    val notificationRepository = NotificationRepository(
+    val devotionalRepository = app?.devotionalRepository ?: DevotionalRepository(database.devotionalDao())
+    val authRepository = app?.authRepository ?: AuthRepository(apiService, tokenManager, preferencesManager, database)
+    val supportRepository = app?.supportRepository ?: SupportRepository(apiService)
+    val notificationRepository = app?.notificationRepository ?: NotificationRepository(
         notificationDao = database.notificationDao(),
         apiService = apiService,
         tokenManager = tokenManager,
         preferencesManager = preferencesManager
     )
-
-    val syncManager = SyncManager(
+    val syncManager = app?.syncManager ?: SyncManager(
         context = application,
         database = database,
         apiService = apiService,
@@ -93,15 +69,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         tokenManager = tokenManager,
         configRepository = configRepository
     )
-
-    val syncState: StateFlow<SyncState> = syncManager.syncState
-
-    val networkMonitor = NetworkMonitor(application)
-    val isOnline: StateFlow<Boolean> = networkMonitor.isOnlineFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), networkMonitor.isOnline())
-
-    val pendingSyncCount: StateFlow<Int> = syncManager.pendingQueueCount
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    val networkMonitor: com.example.core.network.NetworkMonitor =
+        app?.networkMonitor ?: com.example.core.network.ConnectivityManagerNetworkMonitor(application)
 
     private val _activeApiBaseUrl = MutableStateFlow(AppConfig.getApiBaseUrl())
     val activeApiBaseUrl: StateFlow<String> = _activeApiBaseUrl.asStateFlow()
@@ -158,6 +127,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    val syncState: StateFlow<SyncState> = syncManager.syncState
 
     val analyticsTracker = AnalyticsTracker(viewModelScope) { event ->
         apiService.sendAnalyticsEvent(
@@ -299,11 +270,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         viewModelScope.launch {
-            preferencesManager.authToken.collect { token ->
-                currentAuthToken = token
-            }
-        }
-        viewModelScope.launch {
             preferencesManager.isPremium.collect { isPrem ->
                 billingProvider.setLocalPremium(isPrem)
             }
@@ -327,29 +293,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             syncManager.syncAll()
             analyticsTracker.logAppOpen()
         }
-        viewModelScope.launch {
-            var wasOnline: Boolean? = null
-            networkMonitor.isOnlineFlow.collect { online ->
-                if (wasOnline == false && online) {
-                    syncManager.syncAll(isManualTrigger = false)
-                    try {
-                        WorkManagerSyncScheduler.enqueueImmediateSync(getApplication())
-                    } catch (e: Exception) {
-                        // Safe fallback
-                    }
-                }
-                wasOnline = online
-            }
-        }
     }
 
     fun triggerManualSync(onComplete: ((Boolean, String) -> Unit)? = null) {
         viewModelScope.launch {
             val ok = syncManager.syncAll(isManualTrigger = true)
+            try {
+                com.example.data.sync.SyncWorker.enqueueImmediateSync(getApplication(), replaceExisting = true)
+            } catch (_: Exception) {}
             val msg = when (val s = syncManager.syncState.value) {
                 is SyncState.Success -> s.message
                 is SyncState.Error -> s.message
-                else -> if (ok) "Sincronizado!" else "Falha ao sincronizar."
+                else -> if (ok) "Tudo atualizado" else "Offline — sincronizaremos automaticamente"
             }
             onComplete?.invoke(ok, msg)
         }
@@ -377,11 +332,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 analyticsTracker.logFavoriteRemove(current.verseId)
             }
-            try {
-                WorkManagerSyncScheduler.enqueueImmediateSync(getApplication())
-            } catch (e: Exception) {
-                // Ignore background enqueue errors
-            }
         }
     }
 
@@ -399,11 +349,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 analyticsTracker.logFavoriteAdd(verse.id)
             } else {
                 analyticsTracker.logFavoriteRemove(verse.id)
-            }
-            try {
-                WorkManagerSyncScheduler.enqueueImmediateSync(getApplication())
-            } catch (e: Exception) {
-                // Ignore background enqueue errors
             }
         }
     }
@@ -459,11 +404,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             favoriteRepository.deleteFavorite(verseId)
             analyticsTracker.logFavoriteRemove(verseId)
-            try {
-                WorkManagerSyncScheduler.enqueueImmediateSync(getApplication())
-            } catch (e: Exception) {
-                // Ignore enqueue error
-            }
         }
     }
 
@@ -471,12 +411,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val res = authRepository.register(name, email, pass)
             res.onSuccess {
-                syncManager.syncAll()
                 try {
-                    WorkManagerSyncScheduler.enqueueImmediateSync(getApplication())
-                } catch (e: Exception) {
-                    // Ignore enqueue error
-                }
+                    com.example.data.sync.SyncWorker.enqueueImmediateSync(getApplication(), replaceExisting = true)
+                } catch (_: Exception) {}
+                syncManager.syncAll()
                 onResult(true, null)
             }.onFailure { error ->
                 onResult(false, error.message ?: "Erro ao realizar cadastro")
@@ -492,12 +430,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val res = authRepository.login(email, pass)
             res.onSuccess {
-                syncManager.syncAll()
                 try {
-                    WorkManagerSyncScheduler.enqueueImmediateSync(getApplication())
-                } catch (e: Exception) {
-                    // Ignore enqueue error
-                }
+                    com.example.data.sync.SyncWorker.enqueueImmediateSync(getApplication(), replaceExisting = true)
+                } catch (_: Exception) {}
+                syncManager.syncAll()
                 onResult(true, null)
             }.onFailure { error ->
                 onResult(false, error.message ?: "Erro ao realizar login")

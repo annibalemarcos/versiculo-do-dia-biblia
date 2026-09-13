@@ -47,15 +47,14 @@ class PreferencesManager(private val context: Context) {
     }
 
     val debugHostIp: Flow<String?> = context.dataStore.data.map { preferences ->
-        if (com.example.BuildConfig.DEBUG) preferences[DEBUG_HOST_IP_KEY] else null
+        preferences[DEBUG_HOST_IP_KEY]
     }
 
     val debugEnvironment: Flow<String?> = context.dataStore.data.map { preferences ->
-        if (com.example.BuildConfig.DEBUG) preferences[DEBUG_ENVIRONMENT_KEY] else null
+        preferences[DEBUG_ENVIRONMENT_KEY]
     }
 
     suspend fun saveDebugSettings(hostIp: String?, environment: String?) {
-        if (!com.example.BuildConfig.DEBUG) return
         context.dataStore.edit { preferences ->
             if (hostIp != null) {
                 preferences[DEBUG_HOST_IP_KEY] = hostIp

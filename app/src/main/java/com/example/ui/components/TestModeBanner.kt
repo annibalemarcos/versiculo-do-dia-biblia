@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.BuildConfig
 import com.example.core.config.AppConfig
 import com.example.ui.MainViewModel
 
@@ -60,7 +61,7 @@ fun TestModeBanner(
     modifier: Modifier = Modifier,
     customMessage: String? = null
 ) {
-    val isTestMode = appMode.trim().equals("TEST", ignoreCase = true)
+    val isTestMode = BuildConfig.DEBUG && appMode.trim().equals("TEST", ignoreCase = true)
 
     AnimatedVisibility(
         visible = isTestMode,
@@ -128,7 +129,7 @@ fun TestModeBanner(
                             maxLines = 1
                         )
                         Text(
-                            text = "Servidor: ${AppConfig.getApiBaseUrl()}",
+                            text = "Modo de homologação e validação",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium,
                             color = TestBannerAmberDarkText.copy(alpha = 0.85f),

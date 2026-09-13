@@ -39,8 +39,8 @@ interface BibleApiService {
         @Query("limit") limit: Int = 30
     ): Response<ApiResponse<List<VerseDto>>>
 
-    @GET("verses/{verseId}")
-    suspend fun getVerseById(@Path("verseId") verseId: String): Response<ApiResponse<VerseDto>>
+    @GET("verses/{verse_id}")
+    suspend fun getVerseById(@Path("verse_id") verseId: String): Response<ApiResponse<VerseDto>>
 
     @GET("books")
     suspend fun getBooks(): Response<ApiResponse<List<BookDto>>>
@@ -57,8 +57,8 @@ interface BibleApiService {
     @GET("devotionals")
     suspend fun getDevotionals(): Response<ApiResponse<List<DevotionalDto>>>
 
-    @GET("devotionals/{devotionalId}")
-    suspend fun getDevotionalDetail(@Path("devotionalId") devotionalId: String): Response<ApiResponse<DevotionalDetailData>>
+    @GET("devotionals/{devotional_id}")
+    suspend fun getDevotionalDetail(@Path("devotional_id") devotionalId: String): Response<ApiResponse<DevotionalDetailData>>
 
     // ==========================================
     // AUTHENTICATION
@@ -87,8 +87,8 @@ interface BibleApiService {
     @POST("me/favorites")
     suspend fun addUserFavorite(@Body favorite: FavoriteItemDto): Response<ApiResponse<Map<String, String>>>
 
-    @DELETE("me/favorites/{verseId}")
-    suspend fun removeUserFavorite(@Path("verseId") verseId: String): Response<ApiResponse<Unit>>
+    @DELETE("me/favorites/{verse_id}")
+    suspend fun removeUserFavorite(@Path("verse_id") verseId: String): Response<ApiResponse<Unit>>
 
     @GET("me/history")
     suspend fun getReadingHistory(): Response<ApiResponse<List<ReadingHistoryDto>>>
@@ -135,12 +135,12 @@ interface BibleApiService {
         @Query("limit") limit: Int = 20
     ): Response<ApiResponse<List<TicketItemDto>>>
 
-    @GET("support/tickets/{ticketId}")
-    suspend fun getSupportTicketDetail(@Path("ticketId") ticketId: String): Response<ApiResponse<TicketDetailDto>>
+    @GET("support/tickets/{ticket_id}")
+    suspend fun getSupportTicketDetail(@Path("ticket_id") ticketId: String): Response<ApiResponse<TicketDetailDto>>
 
-    @POST("support/tickets/{ticketId}/messages")
+    @POST("support/tickets/{ticket_id}/messages")
     suspend fun replySupportTicket(
-        @Path("ticketId") ticketId: String,
+        @Path("ticket_id") ticketId: String,
         @Body request: TicketMessageCreateRequest
     ): Response<ApiResponse<TicketMessageDto>>
 
@@ -153,8 +153,8 @@ interface BibleApiService {
     @GET("me/notifications/unread-count")
     suspend fun getUnreadNotificationsCount(): Response<ApiResponse<UnreadCountData>>
 
-    @POST("me/notifications/{id}/read")
-    suspend fun markNotificationRead(@Path("id") id: String): Response<ApiResponse<Map<String, Any>>>
+    @POST("me/notifications/{notification_id}/read")
+    suspend fun markNotificationRead(@Path("notification_id") id: String): Response<ApiResponse<Map<String, Any>>>
 
     @POST("me/notifications/read-all")
     suspend fun markAllNotificationsRead(): Response<ApiResponse<Unit>>

@@ -20,7 +20,7 @@ object AppConfig {
     const val VERSION_CODE = 1
 
     // Default Endpoints
-    const val DEFAULT_PRODUCTION_API_URL = "https://api.larzusapps.com/api/v1/"
+    const val DEFAULT_PRODUCTION_API_URL = "https://biblia-api.larzusapps.com/api/v1/"
     const val DEFAULT_STAGING_API_URL = "https://staging-api.larzusapps.com/api/v1/"
     const val DEFAULT_EMULATOR_DEBUG_API_URL = "http://10.0.2.2:8000/api/v1/"
 
@@ -28,17 +28,22 @@ object AppConfig {
      * Detects if the current Android execution environment is an Android Emulator or a Physical Device.
      */
     fun isRunningOnEmulator(): Boolean {
-        return (Build.FINGERPRINT.startsWith("generic")
-                || Build.FINGERPRINT.startsWith("unknown")
-                || Build.MODEL.contains("google_sdk")
-                || Build.MODEL.contains("Emulator")
-                || Build.MODEL.contains("Android SDK built for x86")
-                || Build.MANUFACTURER.contains("Genymotion")
-                || Build.HARDWARE.contains("goldfish")
-                || Build.HARDWARE.contains("ranchu")
-                || Build.PRODUCT.contains("sdk_gphone")
-                || Build.PRODUCT.contains("sdk")
-                || Build.PRODUCT.contains("vbox86p"))
+        val fingerprint = Build.FINGERPRINT ?: ""
+        val model = Build.MODEL ?: ""
+        val manufacturer = Build.MANUFACTURER ?: ""
+        val hardware = Build.HARDWARE ?: ""
+        val product = Build.PRODUCT ?: ""
+        return (fingerprint.startsWith("generic")
+                || fingerprint.startsWith("unknown")
+                || model.contains("google_sdk")
+                || model.contains("Emulator")
+                || model.contains("Android SDK built for x86")
+                || manufacturer.contains("Genymotion")
+                || hardware.contains("goldfish")
+                || hardware.contains("ranchu")
+                || product.contains("sdk_gphone")
+                || product.contains("sdk")
+                || product.contains("vbox86p"))
     }
 
     private val _appMode = MutableStateFlow(if (BuildConfig.DEBUG) "TEST" else "PRODUCTION")
@@ -48,6 +53,7 @@ object AppConfig {
         get() = _appMode.value.equals("TEST", ignoreCase = true)
 
     fun setAppMode(mode: String) {
+        if (!BuildConfig.DEBUG) return
         val normalized = mode.trim().uppercase()
         if (normalized.isNotBlank()) {
             _appMode.value = normalized
@@ -108,6 +114,16 @@ object AppConfig {
     }
 
     /**
+     * Resolves the release base URL ensuring:
+     * - Release builds CANNOT use cleartext HTTP, localhost, 10.0.2.2, or developer LAN IPs.
+     * - Enforces HTTPS and strictly points to the definitive production endpoint.
+     */
+    fun getReleaseApiBaseUrl(): String {
+        val prodUrl = BuildConfig.BASE_API_URL.ifBlank { DEFAULT_PRODUCTION_API_URL }
+        return if (prodUrl.startsWith("https://")) prodUrl else DEFAULT_PRODUCTION_API_URL
+    }
+
+    /**
      * Resolves the active Base URL ensuring:
      * - Release builds CANNOT use cleartext HTTP, localhost, 10.0.2.2, or developer LAN IPs.
      * - Debug builds route to the chosen local IP, Emulator (10.0.2.2), Staging, or Production.
@@ -115,9 +131,7 @@ object AppConfig {
     fun getApiBaseUrl(): String {
         // STRICT RELEASE SAFETY ENFORCEMENT:
         if (!BuildConfig.DEBUG) {
-            val prodUrl = BuildConfig.BASE_API_URL.ifBlank { DEFAULT_PRODUCTION_API_URL }
-            // Double check safety
-            return if (prodUrl.startsWith("https://")) prodUrl else DEFAULT_PRODUCTION_API_URL
+            return getReleaseApiBaseUrl()
         }
 
         // DEBUG RESOLUTION:

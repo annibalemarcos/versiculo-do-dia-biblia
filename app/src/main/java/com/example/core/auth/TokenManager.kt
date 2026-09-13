@@ -3,24 +3,41 @@ package com.example.core.auth
 import android.util.Log
 import com.example.core.datastore.PreferencesManager
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 class TokenManager(
     private val preferencesManager: PreferencesManager,
-    private val onRefreshTokenCall: suspend (refreshToken: String) -> Pair<String, String>? // returns (newAccess, newRefresh)
+    private val onRefreshTokenCall: suspend (refreshToken: String) -> Pair<String, String>? = { null } // returns (newAccess, newRefresh)
 ) {
     private val refreshMutex = Mutex()
 
-    suspend fun getAccessToken(): String? {
-        return preferencesManager.authToken.first()
+    @Volatile
+    private var cachedAccessToken: String? = null
+
+    init {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            preferencesManager.authToken.collect { token ->
+                cachedAccessToken = token
+            }
+        }
     }
+
+    suspend fun getAccessToken(): String? {
+        val token = preferencesManager.authToken.first()
+        cachedAccessToken = token
+        return token
+    }
+
+    fun getAccessTokenSync(): String? = cachedAccessToken
 
     suspend fun getRefreshToken(): String? {
         return preferencesManager.refreshToken.first()
     }
 
     suspend fun saveTokens(accessToken: String, refreshToken: String, name: String?, email: String?, isPremium: Boolean, userId: String? = null) {
+        cachedAccessToken = accessToken
         preferencesManager.saveAuth(
             token = accessToken,
             refreshToken = refreshToken,
@@ -32,6 +49,7 @@ class TokenManager(
     }
 
     suspend fun clearTokens() {
+        cachedAccessToken = null
         preferencesManager.clearAuth()
     }
 

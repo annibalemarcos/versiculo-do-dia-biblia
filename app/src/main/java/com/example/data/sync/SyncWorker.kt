@@ -2,26 +2,8 @@ package com.example.data.sync
 
 import android.content.Context
 import android.util.Log
-import androidx.room.Room
-import androidx.work.BackoffPolicy
-import androidx.work.Constraints
-import androidx.work.CoroutineWorker
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.WorkerParameters
-import com.example.core.auth.TokenManager
-import com.example.core.config.AppConfig
-import com.example.core.datastore.PreferencesManager
-import com.example.data.local.db.AppDatabase
-import com.example.data.remote.ApiClient
-import com.example.data.remote.BibleApiService
-import com.example.data.repository.ConfigRepository
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import androidx.work.*
+import com.example.BibleApplication
 import java.util.concurrent.TimeUnit
 
 class SyncWorker(
@@ -30,130 +12,93 @@ class SyncWorker(
 ) : CoroutineWorker(appContext, workerParams) {
 
     companion object {
-        private const val TAG = "SyncWorker"
-    }
+        const val TAG = "SyncWorker"
+        const val UNIQUE_PERIODIC_WORK_NAME = "bible_periodic_sync_work"
+        const val UNIQUE_ONE_TIME_WORK_NAME = "bible_immediate_sync_work"
 
-    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        Log.d(TAG, "Starting resilient background sync (attempt: $runAttemptCount)...")
+        // Constraint: Must have active network connectivity
+        val SYNC_CONSTRAINTS: Constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
 
-        try {
-            val database = Room.databaseBuilder(
-                applicationContext,
-                AppDatabase::class.java,
-                "biblia_database.db"
-            ).fallbackToDestructiveMigration().build()
+        fun buildOneTimeWorkRequest(): OneTimeWorkRequest {
+            return OneTimeWorkRequestBuilder<SyncWorker>()
+                .setConstraints(SYNC_CONSTRAINTS)
+                .setBackoffCriteria(
+                    BackoffPolicy.EXPONENTIAL,
+                    15,
+                    TimeUnit.SECONDS
+                )
+                .addTag(TAG)
+                .build()
+        }
 
-            val preferencesManager = PreferencesManager(applicationContext)
-            var currentToken: String? = null
-            var serviceRef: BibleApiService? = null
-
-            val tokenManager = TokenManager(
-                preferencesManager = preferencesManager,
-                onRefreshTokenCall = { refreshTok ->
-                    try {
-                        val res = serviceRef?.refreshToken(refreshTok)
-                        if (res?.isSuccessful == true && res.body()?.data != null) {
-                            val data = res.body()!!.data!!
-                            Pair(data.accessToken, data.refreshToken)
-                        } else {
-                            null
-                        }
-                    } catch (e: Exception) {
-                        null
-                    }
-                }
+        fun buildPeriodicWorkRequest(): PeriodicWorkRequest {
+            return PeriodicWorkRequestBuilder<SyncWorker>(
+                repeatInterval = 6,
+                repeatIntervalTimeUnit = TimeUnit.HOURS
             )
+                .setConstraints(SYNC_CONSTRAINTS)
+                .setBackoffCriteria(
+                    BackoffPolicy.EXPONENTIAL,
+                    15,
+                    TimeUnit.SECONDS
+                )
+                .addTag(TAG)
+                .build()
+        }
 
-            currentToken = tokenManager.getAccessToken()
-
-            val apiService = ApiClient.create(
-                baseUrl = AppConfig.getApiBaseUrl(),
-                tokenProvider = { currentToken }
+        fun enqueuePeriodicSync(context: Context) {
+            val workManager = WorkManager.getInstance(context)
+            workManager.enqueueUniquePeriodicWork(
+                UNIQUE_PERIODIC_WORK_NAME,
+                ExistingPeriodicWorkPolicy.KEEP,
+                buildPeriodicWorkRequest()
             )
-            serviceRef = apiService
+            Log.d(TAG, "Unique periodic sync enqueued with ExistingPeriodicWorkPolicy.KEEP")
+        }
 
-            val configRepository = ConfigRepository(apiService, preferencesManager)
-
-            val syncManager = SyncManager(
-                context = applicationContext,
-                database = database,
-                apiService = apiService,
-                preferencesManager = preferencesManager,
-                tokenManager = tokenManager,
-                configRepository = configRepository
+        fun enqueueImmediateSync(context: Context, replaceExisting: Boolean = false) {
+            val workManager = WorkManager.getInstance(context)
+            val policy = if (replaceExisting) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP
+            workManager.enqueueUniqueWork(
+                UNIQUE_ONE_TIME_WORK_NAME,
+                policy,
+                buildOneTimeWorkRequest()
             )
-
-            val success = syncManager.syncAll(isManualTrigger = false)
-
-            if (success) {
-                Log.i(TAG, "SyncWorker successfully finished sync cycle.")
-                Result.success()
-            } else {
-                val pendingCount = syncManager.getPendingCountDirect()
-                if (pendingCount > 0 && runAttemptCount < 5) {
-                    Log.w(TAG, "Sync failed with $pendingCount pending queue items. Scheduling retry with exponential backoff.")
-                    Result.retry()
-                } else {
-                    Result.success()
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "SyncWorker unexpected exception: ${e.message}", e)
-            if (runAttemptCount < 5) {
-                Result.retry()
-            } else {
-                Result.failure()
-            }
+            Log.d(TAG, "Unique immediate sync enqueued with policy $policy")
         }
     }
-}
 
-object WorkManagerSyncScheduler {
-    private const val PERIODIC_WORK_NAME = "bible_periodic_sync_work"
-    private const val ONE_TIME_WORK_NAME = "bible_immediate_sync_work"
+    override suspend fun doWork(): Result {
+        Log.d(TAG, "SyncWorker execution started. Attempt count: $runAttemptCount")
 
-    fun schedulePeriodicSync(context: Context) {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
+        // Guard against infinite retry loops if server or payload is permanently broken
+        if (runAttemptCount >= 5) {
+            Log.w(TAG, "SyncWorker exceeded maximum retry attempts ($runAttemptCount). Marking as failure to avoid loop.")
+            return Result.failure()
+        }
 
-        val periodicRequest = PeriodicWorkRequestBuilder<SyncWorker>(
-            repeatInterval = 15,
-            repeatIntervalTimeUnit = TimeUnit.MINUTES
-        )
-            .setConstraints(constraints)
-            .setBackoffCriteria(
-                BackoffPolicy.EXPONENTIAL,
-                30,
-                TimeUnit.SECONDS
-            )
-            .build()
+        return try {
+            val app = applicationContext as? BibleApplication
+            val syncManager = app?.syncManager ?: BibleApplication.instance?.syncManager
 
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-            PERIODIC_WORK_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
-            periodicRequest
-        )
-    }
+            if (syncManager == null) {
+                Log.e(TAG, "SyncManager instance is null in BibleApplication. Retrying later.")
+                return Result.retry()
+            }
 
-    fun enqueueImmediateSync(context: Context) {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        val immediateRequest = OneTimeWorkRequestBuilder<SyncWorker>()
-            .setConstraints(constraints)
-            .setBackoffCriteria(
-                BackoffPolicy.EXPONENTIAL,
-                15,
-                TimeUnit.SECONDS
-            )
-            .build()
-
-        WorkManager.getInstance(context).enqueueUniqueWork(
-            ONE_TIME_WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
-            immediateRequest
-        )
+            val syncSuccess = syncManager.syncAll(isManualTrigger = false)
+            if (syncSuccess) {
+                Log.d(TAG, "SyncWorker finished successfully.")
+                Result.success()
+            } else {
+                Log.w(TAG, "SyncManager returned false (transient network or server error). Requesting exponential backoff retry.")
+                Result.retry()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Unhandled exception during SyncWorker: ${e.message}", e)
+            Result.retry()
+        }
     }
 }

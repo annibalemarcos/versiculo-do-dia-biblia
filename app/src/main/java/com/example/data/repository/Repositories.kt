@@ -1,5 +1,6 @@
 package com.example.data.repository
 
+import android.content.Context
 import android.util.Log
 import com.example.core.auth.TokenManager
 import com.example.core.datastore.PreferencesManager
@@ -93,7 +94,8 @@ class FavoriteRepository(
     private val syncQueueDao: SyncQueueDao,
     private val apiService: BibleApiService,
     private val tokenManager: TokenManager,
-    private val preferencesManager: PreferencesManager
+    private val preferencesManager: PreferencesManager,
+    private val context: Context? = null
 ) {
     private suspend fun getUserId(): String = preferencesManager.getCurrentUserIdDirect()
 
@@ -180,6 +182,13 @@ class FavoriteRepository(
                 payloadJson = verseId
             )
         )
+        context?.let { ctx ->
+            try {
+                com.example.data.sync.SyncWorker.enqueueImmediateSync(ctx)
+            } catch (e: Exception) {
+                Log.w("FavoriteRepository", "Could not trigger SyncWorker: ${e.message}")
+            }
+        }
     }
 }
 
@@ -262,7 +271,8 @@ class AuthRepository(
     private val apiService: BibleApiService,
     private val tokenManager: TokenManager,
     private val preferencesManager: PreferencesManager,
-    private val database: AppDatabase
+    private val database: AppDatabase,
+    private val context: Context? = null
 ) {
     val currentUserProfile = preferencesManager.userProfile
 
@@ -309,6 +319,13 @@ class AuthRepository(
                     isPremium = isPrem,
                     userId = userId
                 )
+                context?.let { ctx ->
+                    try {
+                        com.example.data.sync.SyncWorker.enqueueImmediateSync(ctx, replaceExisting = true)
+                    } catch (e: Exception) {
+                        Log.w("AuthRepository", "SyncWorker enqueue after register note: ${e.message}")
+                    }
+                }
                 Result.success(user ?: UserDto(id = userId, email = finalEmail, name = finalName, isPremium = isPrem))
             } else {
                 val rawError = resp.errorBody()?.string()
@@ -349,6 +366,13 @@ class AuthRepository(
                     isPremium = isPrem,
                     userId = userId
                 )
+                context?.let { ctx ->
+                    try {
+                        com.example.data.sync.SyncWorker.enqueueImmediateSync(ctx, replaceExisting = true)
+                    } catch (e: Exception) {
+                        Log.w("AuthRepository", "SyncWorker enqueue after login note: ${e.message}")
+                    }
+                }
                 Result.success(user ?: UserDto(id = userId, email = finalEmail, name = finalName, isPremium = isPrem))
             } else {
                 val rawError = resp.errorBody()?.string()

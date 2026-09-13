@@ -11,12 +11,10 @@ import com.example.data.local.db.*
 import com.example.data.remote.*
 import com.example.data.repository.ConfigRepository
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -25,8 +23,23 @@ import java.util.Locale
 sealed class SyncState {
     object Idle : SyncState()
     object Syncing : SyncState()
-    data class Success(val message: String, val timestamp: Long = System.currentTimeMillis()) : SyncState()
-    data class Error(val message: String) : SyncState()
+    data class Success(val message: String = "Tudo atualizado", val timestamp: Long = System.currentTimeMillis()) : SyncState()
+    data class Error(val message: String = "Offline — sincronizaremos automaticamente") : SyncState()
+    object UpToDate : SyncState()
+    object PendingConnection : SyncState()
+    object Offline : SyncState()
+
+    fun getDisplayMessage(): String {
+        return when (this) {
+            is Syncing -> "Sincronizando..."
+            is UpToDate -> "Tudo atualizado"
+            is PendingConnection -> "Alterações aguardando conexão"
+            is Offline -> "Offline — sincronizaremos automaticamente"
+            is Success -> message
+            is Error -> message
+            is Idle -> "Tudo atualizado"
+        }
+    }
 }
 
 data class RemoteContentResult(
@@ -62,71 +75,47 @@ class SyncManager(
     private val themeEmotionDao = database.themeEmotionDao()
     private val syncQueueDao = database.syncQueueDao()
     private val notificationDao = database.notificationDao()
-    private val syncMetadataDao = database.syncMetadataDao()
-
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val pendingQueueCount: Flow<Int> = preferencesManager.currentUserId.flatMapLatest { userId ->
-        syncQueueDao.getPendingCount(userId)
-    }
-
-    suspend fun getPendingCountDirect(): Int {
-        val userId = preferencesManager.getCurrentUserIdDirect()
-        return syncQueueDao.getPendingCountDirect(userId)
-    }
-
-    suspend fun getLastSyncTime(): Long {
-        return syncMetadataDao.getMetadata("last_sync_time")?.toLongOrNull() ?: 0L
-    }
 
     suspend fun syncAll(isManualTrigger: Boolean = false): Boolean = withContext(Dispatchers.IO) {
         _syncState.value = SyncState.Syncing
-        Log.d(TAG, "Starting full synchronization (manual: $isManualTrigger, url: ${AppConfig.getApiBaseUrl()})...")
+        Log.d(TAG, "Starting full synchronization (manual: $isManualTrigger)...")
 
         try {
+            val pendingBefore = try { syncQueueDao.getTotalPendingCount() } catch (_: Exception) { 0 }
+
             // 1. Download and refresh all remote content (Config, Daily Verse, Themes, Emotions, Devotionals)
             val remoteResult = refreshRemoteContent()
 
             // 2. Upload pending offline mutations & user favorites
             val pushedCount = pushPendingChanges()
 
-            val token = tokenManager.getAccessToken()
+            val pendingAfter = try { syncQueueDao.getTotalPendingCount() } catch (_: Exception) { 0 }
 
             if (!remoteResult.isAnySuccessful && pushedCount == 0) {
                 // Network unreachable or server down
-                val errorMsg = "Servidor offline ou inacessível (${AppConfig.getApiBaseUrl()}). Modo offline ativo."
-                Log.d(TAG, errorMsg)
-                _syncState.value = if (isManualTrigger) SyncState.Error(errorMsg) else SyncState.Idle
+                val errorMsg = if (pendingBefore > 0) {
+                    "Alterações aguardando conexão"
+                } else {
+                    "Offline — sincronizaremos automaticamente"
+                }
+                Log.d(TAG, "Sync incomplete: $errorMsg")
+                _syncState.value = SyncState.Error(errorMsg)
                 return@withContext false
             }
 
-            val parts = mutableListOf<String>()
-            if (remoteResult.updatedCount > 0) {
-                parts.add("Conteúdo remoto atualizado (${remoteResult.updatedCount} módulos sincronizados)")
-            }
-            if (pushedCount > 0) {
-                parts.add("$pushedCount alterações locais enviadas à nuvem")
-            } else if (!token.isNullOrBlank()) {
-                parts.add("Dados do usuário sincronizados")
-            }
-
-            val successMsg = if (parts.isNotEmpty()) {
-                parts.joinToString(". ") + "."
+            val successMsg = if (pendingAfter > 0) {
+                "Alterações aguardando conexão"
             } else {
-                "Sincronização concluída com sucesso."
-            }
-
-            try {
-                syncMetadataDao.setMetadata(SyncMetadataEntity("last_sync_time", System.currentTimeMillis().toString()))
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not persist sync metadata: ${e.message}")
+                "Tudo atualizado"
             }
 
             _syncState.value = SyncState.Success(successMsg)
             return@withContext true
         } catch (e: Exception) {
             Log.d(TAG, "Sync note: ${e.javaClass.simpleName} - ${e.message}")
-            val errorMsg = "Servidor offline ou inacessível (${AppConfig.getApiBaseUrl()}). Modo offline ativo."
-            _syncState.value = if (isManualTrigger) SyncState.Error(errorMsg) else SyncState.Idle
+            val pendingCount = try { syncQueueDao.getTotalPendingCount() } catch (_: Exception) { 0 }
+            val errorMsg = if (pendingCount > 0) "Alterações aguardando conexão" else "Offline — sincronizaremos automaticamente"
+            _syncState.value = SyncState.Error(errorMsg)
             return@withContext false
         }
     }
@@ -176,8 +165,13 @@ class SyncManager(
 
     suspend fun syncConfig(): Boolean = withContext(Dispatchers.IO) {
         try {
-            configRepository.fetchRemoteConfig()
-            true
+            val response = apiService.getAppConfig()
+            if (response.isSuccessful && response.body()?.data != null) {
+                configRepository.fetchRemoteConfig()
+                true
+            } else {
+                false
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Config sync failed: ${e.message}")
             false
@@ -426,20 +420,10 @@ class SyncManager(
             val pendingItems = syncQueueDao.getAllPending(userId)
             for (item in pendingItems) {
                 var processed = false
-                var errorReason: String? = null
                 try {
-                    val action = when {
-                        item.actionType.isNotBlank() -> item.actionType
-                        item.entityType.equals("favorite", ignoreCase = true) && item.operation.equals("DELETE", ignoreCase = true) -> "REMOVE_FAVORITE"
-                        item.entityType.equals("favorite", ignoreCase = true) -> "ADD_FAVORITE"
-                        else -> item.actionType
-                    }
-
-                    val targetVerseId = if (item.payloadJson.isNotBlank()) item.payloadJson else item.entityId
-
-                    when (action) {
+                    when (item.actionType) {
                         "ADD_FAVORITE" -> {
-                            val fav = favoriteDao.getAllFavoritesList(userId).find { it.verseId == targetVerseId }
+                            val fav = favoriteDao.getAllFavoritesList(userId).find { it.verseId == item.payloadJson }
                             if (fav != null) {
                                 val res = apiService.addUserFavorite(
                                     FavoriteItemDto(
@@ -452,15 +436,13 @@ class SyncManager(
                                     )
                                 )
                                 processed = res.isSuccessful
-                                if (!processed) errorReason = "HTTP ${res.code()}"
                             } else {
-                                processed = true // deleted or not found
+                                processed = true // deleted already
                             }
                         }
                         "REMOVE_FAVORITE" -> {
-                            val res = apiService.removeUserFavorite(targetVerseId)
+                            val res = apiService.removeUserFavorite(item.payloadJson)
                             processed = res.isSuccessful || res.code() == 404
-                            if (!processed) errorReason = "HTTP ${res.code()}"
                         }
                         else -> {
                             processed = true
@@ -469,18 +451,12 @@ class SyncManager(
                 } catch (e: Exception) {
                     Log.w(TAG, "Error processing pending item ${item.id}: ${e.message}")
                     processed = false
-                    errorReason = e.message ?: "Network error"
                 }
 
                 if (processed) {
                     syncQueueDao.deleteSyncItem(item.id)
                 } else {
-                    syncQueueDao.updateSyncItemStatus(
-                        id = item.id,
-                        status = "FAILED",
-                        retryCount = item.retryCount + 1,
-                        lastError = errorReason
-                    )
+                    syncQueueDao.incrementRetryCount(item.id)
                 }
             }
         } catch (e: Exception) {

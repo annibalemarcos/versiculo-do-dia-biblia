@@ -45,7 +45,7 @@ android {
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
-      buildConfigField("String", "BASE_API_URL", "\"https://api.larzusapps.com/api/v1/\"")
+      buildConfigField("String", "BASE_API_URL", "\"https://biblia-api.larzusapps.com/api/v1/\"")
       buildConfigField("String", "STAGING_API_URL", "\"https://staging-api.larzusapps.com/api/v1/\"")
       buildConfigField("String", "DEBUG_API_URL", "\"\"")
     }
@@ -59,7 +59,7 @@ android {
           ?: "https://staging-api.larzusapps.com/api/v1/"
       val prodUrl = (project.findProperty("BASE_API_URL") as? String)
           ?: System.getenv("BASE_API_URL")
-          ?: "https://api.larzusapps.com/api/v1/"
+          ?: "https://biblia-api.larzusapps.com/api/v1/"
 
       buildConfigField("String", "BASE_API_URL", "\"$prodUrl\"")
       buildConfigField("String", "STAGING_API_URL", "\"$stagingUrl\"")
@@ -116,7 +116,6 @@ dependencies {
   implementation(libs.androidx.navigation.compose)
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
-  implementation(libs.androidx.work.runtime.ktx)
   implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)
@@ -134,10 +133,12 @@ dependencies {
   implementation(libs.okhttp)
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
+  implementation(libs.androidx.work.runtime.ktx)
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
   testImplementation(libs.junit)
+  testImplementation(libs.androidx.work.testing)
   testImplementation(libs.kotlinx.coroutines.test)
   testImplementation(libs.robolectric)
   testImplementation(libs.roborazzi)

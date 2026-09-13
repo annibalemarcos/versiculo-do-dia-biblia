@@ -109,44 +109,10 @@ data class EmotionEntity(
 data class SyncQueueEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val userId: String = "guest",
-    val entityType: String = "favorite", // "favorite", "history", "ticket", "message", "preference"
-    val entityId: String = "",
-    val operation: String = "UPSERT", // "UPSERT", "DELETE"
-    val actionType: String = "", // e.g. "ADD_FAVORITE", "REMOVE_FAVORITE"
-    val payloadJson: String = "",
+    val actionType: String, // "ADD_FAVORITE", "REMOVE_FAVORITE", "DEVOTIONAL_PROGRESS"
+    val payloadJson: String,
     val createdAt: Long = System.currentTimeMillis(),
-    val retryCount: Int = 0,
-    val lastError: String? = null,
-    val syncStatus: String = "PENDING" // "PENDING", "IN_PROGRESS", "FAILED", "COMPLETED"
-)
-
-@Entity(tableName = "support_tickets")
-data class TicketEntity(
-    @PrimaryKey val id: String,
-    val userId: String = "guest",
-    val title: String,
-    val status: String = "open", // open, in_progress, resolved, closed
-    val priority: String = "normal",
-    val createdAt: String = "",
-    val updatedAt: String = ""
-)
-
-@Entity(tableName = "support_messages")
-data class TicketMessageEntity(
-    @PrimaryKey val id: String,
-    val ticketId: String,
-    val senderType: String = "user", // "user", "agent", "system"
-    val senderName: String = "Você",
-    val message: String,
-    val createdAt: String = "",
-    val isLocalPending: Boolean = false
-)
-
-@Entity(tableName = "sync_metadata")
-data class SyncMetadataEntity(
-    @PrimaryKey val key: String,
-    val value: String,
-    val updatedAt: Long = System.currentTimeMillis()
+    val retryCount: Int = 0
 )
 
 @Entity(tableName = "notifications")
