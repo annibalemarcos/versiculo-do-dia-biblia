@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = '002_staff_hierarchy_and_notifications'
+revision = '002_staff_hierarchy'
 down_revision = '001_initial_schema'
 branch_labels = None
 depends_on = None
