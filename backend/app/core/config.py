@@ -45,11 +45,6 @@ try:
         # Rate Limiting
         RATE_LIMIT_PER_MINUTE: int = 120
 
-        # Seed & Admin Bootstrap Settings
-        RUN_SEED_ON_STARTUP: bool = False
-        INITIAL_ADMIN_EMAIL: str = ""
-        INITIAL_ADMIN_PASSWORD: str = ""
-
         @property
         def cors_origins(self) -> List[str]:
             return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
@@ -85,9 +80,6 @@ except Exception:
         ADMOB_APP_ID_ANDROID: str = ""
         ADSENSE_CLIENT_ID: str = ""
         RATE_LIMIT_PER_MINUTE: int = 120
-        RUN_SEED_ON_STARTUP: bool = os.getenv("RUN_SEED_ON_STARTUP", "false").lower() in ("true", "1", "yes")
-        INITIAL_ADMIN_EMAIL: str = os.getenv("INITIAL_ADMIN_EMAIL", "")
-        INITIAL_ADMIN_PASSWORD: str = os.getenv("INITIAL_ADMIN_PASSWORD", "")
 
         @property
         def cors_origins(self) -> List[str]:

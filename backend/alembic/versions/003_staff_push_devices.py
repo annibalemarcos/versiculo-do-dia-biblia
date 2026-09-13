@@ -1,7 +1,7 @@
 """Staff push devices table for browser/FCM real push notifications
 
 Revision ID: 003_staff_push_devices
-Revises: 002_staff_hierarchy_and_notifications
+Revises: 002_staff_hierarchy
 Create Date: 2026-08-30 02:00:00.000000
 
 """

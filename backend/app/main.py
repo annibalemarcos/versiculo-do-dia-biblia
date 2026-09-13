@@ -1,6 +1,5 @@
-from datetime import datetime, timezone
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,13 +11,7 @@ from app.core.errors import (
     http_exception_handler,
     global_exception_handler
 )
-from app.core.database import (
-    init_db,
-    check_database_health,
-    check_migration_status,
-    is_production,
-    EXPECTED_ALEMBIC_HEAD
-)
+from app.core.database import init_db, check_database_health
 from app.db.seed import run_seed
 
 # Public Routers
@@ -55,18 +48,12 @@ from app.api.admin.tickets import router as admin_tickets_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # In production, table creation via create_all() is strictly prohibited.
-    # Schema creation and evolution is handled exclusively via 'alembic upgrade head'.
-    if not is_production:
-        init_db()
-    
-    # In production, automatic seed on startup is STRICTLY DISABLED.
-    # In development/test, it only runs if RUN_SEED_ON_STARTUP is explicitly set to true.
-    if not is_production and settings.RUN_SEED_ON_STARTUP:
-        try:
-            run_seed(include_demo_data=True)
-        except Exception as e:
-            print(f"[Notice] Startup seed skipped or failed: {e}")
+    # Initialize DB & Seed Data on startup
+    init_db()
+    try:
+        run_seed()
+    except Exception as e:
+        print(f"Notice on seed startup: {e}")
     yield
 
 app = FastAPI(
@@ -111,67 +98,41 @@ def root():
 
 @app.get("/health")
 @app.get(f"{settings.API_V1_PREFIX}/health")
-def liveness_check():
-    """
-    Fast liveness probe: returns 200 OK with runtime status, environment and UTC timestamp.
-    """
+def health_check():
     return {
-        "status": "ok",
+        "status": "healthy",
         "app": settings.APP_NAME,
-        "env": settings.APP_ENV,
-        "app_version": "1.0.0",
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "environment": settings.APP_ENV,
+        "version": "1.0.0"
     }
 
 @app.get("/health/ready")
 @app.get(f"{settings.API_V1_PREFIX}/health/ready")
+@app.get("/ready")
 def readiness_check():
     """
-    Readiness probe: validates actual database connectivity with 'SELECT 1'
-    and confirms that Alembic migrations have been applied up to HEAD.
-    Returns 200 if connected and migrations are up-to-date, or 503 Service Unavailable if unready.
+    Readiness probe endpoint:
+    Executa 'SELECT 1' no banco de dados para verificar prontidão do serviço.
+    Retorna 200 OK quando o banco de dados está disponível.
+    Retorna 503 Service Unavailable quando o banco está indisponível.
+    Preserva segurança estrita: nenhuma credencial, segredo ou URL é exposta.
     """
-    is_healthy, db_detail = check_database_health()
-    now_ts = datetime.now(timezone.utc).isoformat()
-
-    if not is_healthy:
+    health = check_database_health()
+    if not health.get("healthy", False):
         return JSONResponse(
-            status_code=503,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
-                "status": "not_ready",
-                "database": "disconnected",
-                "error": db_detail,
-                "env": settings.APP_ENV,
-                "app_version": "1.0.0",
-                "timestamp": now_ts
+                "status": "unavailable",
+                "database": "unavailable",
+                "ready": False,
+                "error": health.get("error", "Database connection failed or timed out.")
             }
         )
-
-    # Check migration version
-    mig_ok, mig_detail = check_migration_status()
-    if not mig_ok:
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "not_ready",
-                "database": "ok",
-                "migration": "outdated",
-                "detail": mig_detail,
-                "expected_revision": EXPECTED_ALEMBIC_HEAD,
-                "env": settings.APP_ENV,
-                "app_version": "1.0.0",
-                "timestamp": now_ts
-            }
-        )
-
     return {
         "status": "ready",
-        "database": "connected",
-        "migration": "up_to_date",
-        "revision": EXPECTED_ALEMBIC_HEAD,
-        "env": settings.APP_ENV,
-        "app_version": "1.0.0",
-        "timestamp": now_ts
+        "database": "available",
+        "ready": True,
+        "response_time_ms": health.get("response_time_ms", 1)
     }
 
 # Public API routes
