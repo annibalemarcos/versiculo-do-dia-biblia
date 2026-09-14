@@ -162,7 +162,7 @@ def check_system_health(db: Session) -> SystemHealthResponse:
     )
 
     # 8. Auth / JWT Security Engine - CRÍTICO
-    has_jwt_secret = bool(settings.JWT_SECRET and len(settings.JWT_SECRET) >= 16)
+    has_jwt_secret = bool(settings.SECRET_KEY and len(settings.SECRET_KEY) >= 16)
     components.append(
         ComponentHealth(
             name="auth_jwt",
@@ -170,7 +170,7 @@ def check_system_health(db: Session) -> SystemHealthResponse:
             status="healthy" if has_jwt_secret else "degraded",
             criticality="CRÍTICO",
             response_time_ms=1,
-            message="Algoritmo HMAC-SHA256 validado com assinatura e expiração seguras" if has_jwt_secret else "JWT_SECRET fraco ou ausente. Recomenda-se gerar segredo forte.",
+            message="Algoritmo HMAC-SHA256 validado com assinatura e expiração seguras" if has_jwt_secret else "SECRET_KEY fraca ou ausente. Recomenda-se gerar segredo forte.",
             last_check_at=now,
             recommendation="Manter segredos criptográficos isolados e rotacionar periodicamente."
         )
@@ -391,7 +391,7 @@ def test_provider_connection(provider: str, db: Session) -> dict:
 
     elif p in ("auth_jwt", "jwt", "auth"):
         try:
-            has_jwt = bool(settings.JWT_SECRET and len(settings.JWT_SECRET) >= 16)
+            has_jwt = bool(settings.SECRET_KEY and len(settings.SECRET_KEY) >= 16)
             from app.core.security import create_access_token, decode_access_token
             # Test issuing and decoding token safely
             test_token = create_access_token(data={"sub": "health_check_test_user"})
@@ -415,10 +415,10 @@ def test_provider_connection(provider: str, db: Session) -> dict:
                     "display_name": "Autenticação JWT & RBAC Engine",
                     "status": "degraded",
                     "response_time_ms": duration,
-                    "message": "Validação de token gerou resultado inesperado ou chave JWT_SECRET curta.",
+                    "message": "Validação de token gerou resultado inesperado ou chave SECRET_KEY curta.",
                     "tested_at": now_iso,
                     "last_success_at": None,
-                    "error_summary": "Revisar integridade da chave JWT_SECRET."
+                    "error_summary": "Revisar integridade da chave SECRET_KEY."
                 }
         except Exception as e:
             return {

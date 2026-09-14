@@ -258,3 +258,19 @@ Desktop.ini
 # package-lock.json
 # gradle files
 # .env.example
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local databases
+*.db
+
+# Android signing keys
+*.jks
+*.keystore
+
+# Build/cache
+.kotlin/
+.build-outputs/

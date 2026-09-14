@@ -8,6 +8,7 @@ from app.core.dependencies import require_permission
 from app.core.errors import NotFoundException
 from app.models.user import User, Favorite, ReadingHistory, UserPreference
 from app.models.monetization import Subscription
+from app.models.ticket import SupportTicket
 from app.services.audit_service import log_admin_action
 
 router = APIRouter(prefix="/users", tags=["Admin User Management"])
@@ -93,12 +94,12 @@ def list_users(
             "app_id": u.app_id,
             "is_anonymous": u.is_anonymous,
             "is_active": u.is_active,
-            "is_deleted": getattr(u, "is_deleted", False),
+            "is_deleted": getattr(u, "is_deleted", False) or False,
             "deleted_at": u.deleted_at.isoformat() if getattr(u, "deleted_at", None) else None,
             "is_premium": u.is_premium,
             "premium_expires_at": u.premium_expires_at.isoformat() if u.premium_expires_at else None,
-            "last_seen_at": u.last_seen_at.isoformat(),
-            "created_at": u.created_at.isoformat(),
+            "last_seen_at": u.last_seen_at.isoformat() if u.last_seen_at else None,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
             "favorites_count": fav_count,
             "history_count": hist_count,
             "tickets_count": tickets_count,
@@ -158,12 +159,12 @@ def get_user_detail(
             "app_id": u.app_id,
             "is_anonymous": u.is_anonymous,
             "is_active": u.is_active,
-            "is_deleted": getattr(u, "is_deleted", False),
+            "is_deleted": getattr(u, "is_deleted", False) or False,
             "deleted_at": u.deleted_at.isoformat() if getattr(u, "deleted_at", None) else None,
             "is_premium": u.is_premium,
             "premium_expires_at": u.premium_expires_at.isoformat() if u.premium_expires_at else None,
-            "last_seen_at": u.last_seen_at.isoformat(),
-            "created_at": u.created_at.isoformat(),
+            "last_seen_at": u.last_seen_at.isoformat() if u.last_seen_at else None,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
             "favorites_count": fav_count,
             "history_count": hist_count,
             "tickets_count": tickets_count,
@@ -189,7 +190,7 @@ def get_user_detail(
                     "status": s.status,
                     "order_id": s.order_id,
                     "purchase_token_masked": s.purchase_token_masked,
-                    "starts_at": s.starts_at.isoformat(),
+                    "starts_at": s.starts_at.isoformat() if s.starts_at else None,
                     "expires_at": s.expires_at.isoformat() if s.expires_at else None,
                     "is_auto_renewing": s.is_auto_renewing
                 }
@@ -327,7 +328,6 @@ def get_user_activity_timeline(
     admin = Depends(require_permission("users.read")),
     db: Session = Depends(get_db)
 ):
-    from app.models.ticket import SupportTicket
     from app.models.bible import DevotionalProgress, Devotional
     from app.models.analytics import AnalyticsEvent
     from app.models.monetization import Subscription, AdminEntitlementGrant
@@ -494,7 +494,6 @@ def get_user_tickets(
     admin = Depends(require_permission("tickets.read")),
     db: Session = Depends(get_db)
 ):
-    from app.models.ticket import SupportTicket
     tickets = db.query(SupportTicket).filter(SupportTicket.user_id == user_id).order_by(desc(SupportTicket.updated_at)).all()
     return {
         "success": True,

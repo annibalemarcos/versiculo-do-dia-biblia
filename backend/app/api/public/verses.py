@@ -75,6 +75,50 @@ def get_daily_verse(
         }
     }
 
+@router.get("/verses")
+def list_published_verses(
+    book_id: Optional[str] = Query(None),
+    chapter: Optional[int] = Query(None),
+    theme_id: Optional[str] = Query(None),
+    emotion_id: Optional[str] = Query(None),
+    translation: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Verse).filter(Verse.status == "published")
+    if book_id:
+        query = query.filter(Verse.book_id == book_id)
+    if chapter:
+        query = query.filter(Verse.chapter == chapter)
+    if theme_id:
+        query = query.filter(Verse.themes.any(id=theme_id))
+    if emotion_id:
+        query = query.filter(Verse.emotions.any(id=emotion_id))
+    if translation:
+        query = query.filter(Verse.translation == translation)
+
+    total = query.count()
+    verses = query.order_by(Verse.chapter, Verse.verse_number).offset(offset).limit(limit).all()
+
+    return {
+        "success": True,
+        "total": total,
+        "data": [
+            {
+                "id": v.id,
+                "book_id": v.book_id,
+                "translation": v.translation,
+                "chapter": v.chapter,
+                "verse_number": v.verse_number,
+                "reference": v.reference,
+                "text": v.text,
+                "language": v.language
+            }
+            for v in verses
+        ]
+    }
+
 @router.get("/verses/search")
 def search_verses(
     q: str = Query(..., min_length=2),

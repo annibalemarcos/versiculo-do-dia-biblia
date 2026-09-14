@@ -1,4 +1,23 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+
+export function joinApiUrl(baseUrl: string, endpoint: string): string {
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+    return endpoint;
+  }
+  const cleanBase = (baseUrl || '/api/v1').replace(/\/+$/, '');
+  let cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+  // If cleanBase already ends with /api/v1, strip duplicate /api/v1 from start of cleanEndpoint
+  if (cleanBase.endsWith('/api/v1')) {
+    if (cleanEndpoint.startsWith('/api/v1/')) {
+      cleanEndpoint = cleanEndpoint.substring('/api/v1'.length);
+    } else if (cleanEndpoint === '/api/v1') {
+      cleanEndpoint = '';
+    }
+  }
+
+  return `${cleanBase}${cleanEndpoint}`;
+}
 
 class ApiClient {
   private getToken(): string | null {
@@ -9,12 +28,7 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<{ success: boolean; data: T; error?: any; message?: string }> {
-    const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    const url = normalizedEndpoint.startsWith('http')
-      ? normalizedEndpoint
-      : normalizedEndpoint.startsWith(API_BASE_URL)
-      ? normalizedEndpoint
-      : `${API_BASE_URL}${normalizedEndpoint}`;
+    const url = joinApiUrl(API_BASE_URL, endpoint);
     const token = this.getToken();
 
     const headers: Record<string, string> = {

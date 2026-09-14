@@ -63,11 +63,11 @@ export const SystemHealth: React.FC = () => {
    */
   const fetchHealth = async () => {
     setLoading(true);
-    const res = await api.get<SystemHealthData>('/api/v1/admin/health');
+    const res = await api.get<SystemHealthData>('/admin/health');
     if (res.success && res.data) {
       setHealthData(res.data);
     } else {
-      showToast('Erro ao consultar /api/v1/admin/health', 'error');
+      showToast('Erro ao consultar /admin/health', 'error');
     }
     setLoading(false);
   };
@@ -77,11 +77,11 @@ export const SystemHealth: React.FC = () => {
   }, []);
 
   /**
-   * Test a single provider connection via POST /api/v1/admin/health/test/{providerId}
+   * Test a single provider connection via POST /admin/health/test/{providerId}
    */
   const handleTestProvider = async (providerId: string) => {
     setTestingProvider(providerId);
-    const res = await api.post<ProviderTestResult>(`/api/v1/admin/health/test/${providerId}`);
+    const res = await api.post<ProviderTestResult>(`/admin/health/test/${providerId}`);
     setTestingProvider(null);
 
     if (res.success && res.data) {
@@ -106,7 +106,7 @@ export const SystemHealth: React.FC = () => {
    */
   const handleTestAllProviders = async () => {
     setIsTestingAll(true);
-    const res = await api.post<AllProvidersTestResponse>('/api/v1/admin/health/test-all');
+    const res = await api.post<AllProvidersTestResponse>('/admin/health/test-all');
     setIsTestingAll(false);
 
     if (res.success && res.data) {
@@ -335,10 +335,22 @@ export const SystemHealth: React.FC = () => {
               </div>
             </div>
 
-            <div className="text-xs font-mono text-slate-400 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>Conexão ativa com o backend</span>
-            </div>
+            {loading ? (
+              <div className="text-xs font-mono text-slate-400 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <span>Verificando conexão com o backend...</span>
+              </div>
+            ) : healthData ? (
+              <div className="text-xs font-mono text-slate-400 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                <span>Conexão ativa com o backend</span>
+              </div>
+            ) : (
+              <div className="text-xs font-mono text-rose-400 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                <span>Falha na comunicação com o backend</span>
+              </div>
+            )}
           </div>
 
           {/* List of the 7 Requested Providers */}

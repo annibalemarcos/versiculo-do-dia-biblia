@@ -1,3 +1,4 @@
+import logging
 import math
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any, Tuple
@@ -9,35 +10,26 @@ from app.models.user import User
 from app.models.base import utc_now
 from app.core.errors import NotFoundException, ForbiddenException, BadRequestException, AppException
 
+logger = logging.getLogger("ticket_service")
+
 def generate_next_ticket_number(db: Session) -> str:
     """
     Generates human-readable sequential ticket number e.g. TKT-000001
     Concurrency-safe using PostgreSQL sequence when available, with atomic fallback.
+    Guarantees clean transaction state even if PostgreSQL sequence does not exist yet.
     """
     bind = db.get_bind()
     if bind and bind.dialect.name == "postgresql":
         try:
-            # Atomic sequence fetch from PostgreSQL
+            # 1. Atomic sequence fetch from PostgreSQL
             seq_val = db.execute(text("SELECT nextval('support_ticket_number_seq')")).scalar()
             if seq_val is not None:
                 return f"TKT-{int(seq_val):06d}"
         except Exception:
-            try:
-                db.execute(text("CREATE SEQUENCE IF NOT EXISTS support_ticket_number_seq START WITH 1 INCREMENT BY 1;"))
-                # Synchronize sequence with current max ticket number
-                db.execute(text("""
-                    SELECT setval('support_ticket_number_seq', COALESCE((
-                        SELECT MAX(NULLIF(regexp_replace(ticket_number, '[^0-9]', '', 'g'), '')::integer)
-                        FROM support_tickets
-                    ), 0) + 1, false);
-                """))
-                seq_val = db.execute(text("SELECT nextval('support_ticket_number_seq')")).scalar()
-                if seq_val is not None:
-                    return f"TKT-{int(seq_val):06d}"
-            except Exception:
-                pass
+            # Immediate rollback to clear InFailedSqlTransaction state in PostgreSQL
+            db.rollback()
 
-    # Fallback for SQLite / Tests / initial migrations
+    # 2. Fallback for SQLite / Tests / unmigrated environments
     try:
         last_tickets = db.query(SupportTicket.ticket_number).order_by(desc(SupportTicket.created_at)).limit(50).all()
         max_num = 0
@@ -52,10 +44,15 @@ def generate_next_ticket_number(db: Session) -> str:
         if max_num > 0:
             return f"TKT-{max_num + 1:06d}"
     except Exception:
-        pass
+        db.rollback()
 
-    count = db.query(SupportTicket).count()
-    return f"TKT-{count + 1:06d}"
+    try:
+        count = db.query(SupportTicket).count()
+        return f"TKT-{count + 1:06d}"
+    except Exception:
+        db.rollback()
+        import uuid
+        return f"TKT-{uuid.uuid4().hex[:6].upper()}"
 
 def record_ticket_history(
     db: Session,
@@ -170,7 +167,9 @@ def create_ticket(
             return ticket
         except Exception as e:
             db.rollback()
+            logger.warning(f"[TICKET] Creation attempt {attempt + 1}/{max_retries} failed: {e}", exc_info=True)
             if attempt == max_retries - 1:
+                logger.error(f"[TICKET] All {max_retries} ticket creation attempts exhausted: {e}", exc_info=True)
                 raise e
 
 def add_ticket_message(

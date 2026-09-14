@@ -32,6 +32,17 @@ interface BibleApiService {
     @GET("verses/daily")
     suspend fun getDailyVerse(@Query("target_date") targetDate: String? = null): Response<ApiResponse<DailyVerseData>>
 
+    @GET("verses")
+    suspend fun getVerses(
+        @Query("book_id") bookId: String? = null,
+        @Query("chapter") chapter: Int? = null,
+        @Query("theme_id") themeId: String? = null,
+        @Query("emotion_id") emotionId: String? = null,
+        @Query("translation") translation: String? = null,
+        @Query("limit") limit: Int = 100,
+        @Query("offset") offset: Int = 0
+    ): Response<ApiResponse<List<VerseDto>>>
+
     @GET("verses/search")
     suspend fun searchVerses(
         @Query("q") query: String,

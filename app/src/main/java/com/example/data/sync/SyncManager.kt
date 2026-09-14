@@ -47,9 +47,10 @@ data class RemoteContentResult(
     val dailyVerseSuccess: Boolean = false,
     val themesSuccess: Boolean = false,
     val devotionalsSuccess: Boolean = false,
+    val versesSuccess: Boolean = false,
     val updatedCount: Int = 0
 ) {
-    val isAnySuccessful: Boolean get() = configSuccess || dailyVerseSuccess || themesSuccess || devotionalsSuccess
+    val isAnySuccessful: Boolean get() = configSuccess || dailyVerseSuccess || themesSuccess || devotionalsSuccess || versesSuccess
 }
 
 class SyncManager(
@@ -134,11 +135,15 @@ class SyncManager(
         val devOk = syncDevotionals()
         if (devOk) updatedCount++
 
+        val versesOk = syncVerses()
+        if (versesOk) updatedCount++
+
         RemoteContentResult(
             configSuccess = configOk,
             dailyVerseSuccess = dailyOk,
             themesSuccess = themesOk,
             devotionalsSuccess = devOk,
+            versesSuccess = versesOk,
             updatedCount = updatedCount
         )
     }
@@ -285,6 +290,36 @@ class SyncManager(
             }
         } catch (e: Exception) {
             Log.w(TAG, "Devotionals sync failed: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun syncVerses(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val resp = apiService.getVerses(limit = 100)
+            if (resp.isSuccessful && resp.body()?.data != null) {
+                val dtoList = resp.body()!!.data!!
+                val entities = dtoList.map { dto ->
+                    VerseEntity(
+                        id = dto.id,
+                        bookName = dto.reference.split(" ").firstOrNull() ?: "Bíblia",
+                        chapter = dto.chapter,
+                        verseNumber = dto.verseNumber,
+                        text = dto.text,
+                        translation = dto.translation,
+                        theme = "",
+                        emotion = "",
+                        reflection = "",
+                        isDaily = false
+                    )
+                }
+                verseDao.insertVerses(entities)
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Sync verses failed: ${e.message}")
             false
         }
     }

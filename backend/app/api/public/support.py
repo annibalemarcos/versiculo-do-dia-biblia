@@ -1,7 +1,8 @@
+import logging
 import os
 import uuid
 from typing import Optional, List
-from fastapi import APIRouter, Depends, Query, UploadFile, File, Form, Request
+from fastapi import APIRouter, Depends, Query, UploadFile, File, Form, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.core.database import get_db
@@ -10,6 +11,8 @@ from app.core.errors import NotFoundException, ForbiddenException, BadRequestExc
 from app.models.user import User
 from app.models.ticket import SupportTicket, TicketMessage, TicketAttachment
 from app.models.base import utc_now
+
+logger = logging.getLogger("support_api")
 from app.schemas.ticket import (
     TicketCreateUserRequest,
     TicketSummaryResponse,
@@ -132,7 +135,7 @@ def _serialize_ticket_detail_for_user(t: SupportTicket) -> dict:
         "history": []  # History is admin-only
     }
 
-@router.post("/tickets")
+@router.post("/tickets", status_code=status.HTTP_201_CREATED)
 def create_support_ticket(
     body: TicketCreateUserRequest,
     current_user: Optional[User] = Depends(get_current_user_optional),
@@ -142,26 +145,32 @@ def create_support_ticket(
     """
     Creates a new support ticket by an authenticated user or guest.
     """
-    user_id = current_user.id if current_user else None
-    guest_email = body.guest_email if not current_user else None
-    guest_name = body.guest_name if not current_user else None
+    try:
+        user_id = current_user.id if current_user else None
+        guest_email = body.guest_email if not current_user else None
+        guest_name = body.guest_name if not current_user else None
 
-    ticket = create_ticket(
-        db=db,
-        app_id=app_id,
-        subject=body.subject,
-        description=body.description,
-        category=body.category,
-        priority=body.priority,
-        user_id=user_id,
-        guest_email=guest_email,
-        guest_name=guest_name
-    )
+        ticket = create_ticket(
+            db=db,
+            app_id=app_id,
+            subject=body.subject,
+            description=body.description,
+            category=body.category,
+            priority=body.priority,
+            user_id=user_id,
+            guest_email=guest_email,
+            guest_name=guest_name
+        )
 
-    return {
-        "success": True,
-        "data": _serialize_ticket_detail_for_user(ticket)
-    }
+        return {
+            "success": True,
+            "data": _serialize_ticket_detail_for_user(ticket)
+        }
+    except AppException:
+        raise
+    except Exception as e:
+        logger.error(f"[SUPPORT API] Error creating support ticket: {e}", exc_info=True)
+        raise
 
 @router.get("/tickets")
 def list_my_support_tickets(
