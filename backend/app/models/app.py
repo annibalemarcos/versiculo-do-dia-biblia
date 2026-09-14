@@ -23,7 +23,25 @@ class AppConfig(Base, TimestampMixin):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     app_id = Column(String(50), ForeignKey("apps.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
     maintenance_mode = Column(Boolean, default=False, nullable=False)
+    maintenance_level = Column(String(20), default="informational", nullable=False)  # "informational", "partial", "full"
+    maintenance_title = Column(String(150), nullable=True)
     maintenance_message = Column(String(255), default="Estamos em manutenção para melhorias. Voltamos em breve.", nullable=False)
+    maintenance_estimated_end = Column(DateTime(timezone=True), nullable=True)
+
+    registration_enabled = Column(Boolean, default=True, nullable=False)
+    purchases_enabled = Column(Boolean, default=True, nullable=False)
+    premium_enabled = Column(Boolean, default=True, nullable=False)
+    notifications_enabled = Column(Boolean, default=True, nullable=False)
+    support_enabled = Column(Boolean, default=True, nullable=False)
+    cloud_sync_enabled = Column(Boolean, default=True, nullable=False)
+    devotionals_enabled = Column(Boolean, default=True, nullable=False)
+    search_enabled = Column(Boolean, default=True, nullable=False)
+    sharing_enabled = Column(Boolean, default=True, nullable=False)
+    offline_download_enabled = Column(Boolean, default=True, nullable=False)
+    google_login_enabled = Column(Boolean, default=False, nullable=False)
+
+    updated_by = Column(String(36), nullable=True)
+
     minimum_supported_version = Column(Integer, default=1, nullable=False)
     latest_version = Column(Integer, default=1, nullable=False)
     force_update = Column(Boolean, default=False, nullable=False)

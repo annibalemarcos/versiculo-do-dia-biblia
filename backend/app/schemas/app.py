@@ -32,7 +32,21 @@ class AppResponse(BaseModel):
 
 class AppConfigUpdate(BaseModel):
     maintenance_mode: Optional[bool] = None
+    maintenance_level: Optional[str] = None
+    maintenance_title: Optional[str] = None
     maintenance_message: Optional[str] = None
+    maintenance_estimated_end: Optional[datetime] = None
+    registration_enabled: Optional[bool] = None
+    purchases_enabled: Optional[bool] = None
+    premium_enabled: Optional[bool] = None
+    notifications_enabled: Optional[bool] = None
+    support_enabled: Optional[bool] = None
+    cloud_sync_enabled: Optional[bool] = None
+    devotionals_enabled: Optional[bool] = None
+    search_enabled: Optional[bool] = None
+    sharing_enabled: Optional[bool] = None
+    offline_download_enabled: Optional[bool] = None
+    google_login_enabled: Optional[bool] = None
     minimum_supported_version: Optional[int] = None
     latest_version: Optional[int] = None
     force_update: Optional[bool] = None
@@ -43,7 +57,22 @@ class AppConfigUpdate(BaseModel):
 class AppConfigResponse(BaseModel):
     app_id: str
     maintenance_mode: bool
+    maintenance_level: str = "informational"
+    maintenance_title: Optional[str] = None
     maintenance_message: str
+    maintenance_estimated_end: Optional[datetime] = None
+    registration_enabled: bool = True
+    purchases_enabled: bool = True
+    premium_enabled: bool = True
+    notifications_enabled: bool = True
+    support_enabled: bool = True
+    cloud_sync_enabled: bool = True
+    devotionals_enabled: bool = True
+    search_enabled: bool = True
+    sharing_enabled: bool = True
+    offline_download_enabled: bool = True
+    google_login_enabled: bool = False
+    updated_by: Optional[str] = None
     minimum_supported_version: int
     latest_version: int
     force_update: bool

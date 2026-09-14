@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.CloudSync
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.*
@@ -56,6 +57,7 @@ fun HomeScreen(
     val remoteConfig by viewModel.remoteConfig.collectAsState()
     val syncState by viewModel.syncState.collectAsState()
     val unreadNotificationsCount by viewModel.unreadNotificationsCount.collectAsState()
+    val isPremium by viewModel.isPremium.collectAsState()
 
     val isDailyFav = dailyVerse?.let { dv ->
         favorites.any { it.verseId == dv.verseId }
@@ -82,42 +84,46 @@ fun HomeScreen(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = { viewModel.triggerManualSync() },
-                        modifier = Modifier.testTag("sync_icon_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.CloudSync,
-                            contentDescription = "Sincronizar",
-                            tint = SagePrimary
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { onNavigateToNotifications() },
-                        modifier = Modifier.testTag("notifications_icon_button")
-                    ) {
-                        BadgedBox(
-                            badge = {
-                                if (unreadNotificationsCount > 0) {
-                                    Badge(
-                                        containerColor = MaterialTheme.colorScheme.error,
-                                        contentColor = MaterialTheme.colorScheme.onError
-                                    ) {
-                                        Text(if (unreadNotificationsCount > 99) "99+" else unreadNotificationsCount.toString())
-                                    }
-                                }
-                            }
+                    if (remoteConfig.cloudSyncEnabled) {
+                        IconButton(
+                            onClick = { viewModel.triggerManualSync() },
+                            modifier = Modifier.testTag("sync_icon_button")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Notifications,
-                                contentDescription = "Central de Notificações",
+                                imageVector = Icons.Outlined.CloudSync,
+                                contentDescription = "Sincronizar",
                                 tint = SagePrimary
                             )
                         }
                     }
 
-                    if (remoteConfig.paywallEnabled) {
+                    if (remoteConfig.notificationsEnabled) {
+                        IconButton(
+                            onClick = { onNavigateToNotifications() },
+                            modifier = Modifier.testTag("notifications_icon_button")
+                        ) {
+                            BadgedBox(
+                                badge = {
+                                    if (unreadNotificationsCount > 0) {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.error,
+                                            contentColor = MaterialTheme.colorScheme.onError
+                                        ) {
+                                            Text(if (unreadNotificationsCount > 99) "99+" else unreadNotificationsCount.toString())
+                                        }
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = "Central de Notificações",
+                                    tint = SagePrimary
+                                )
+                            }
+                        }
+                    }
+
+                    if (!isPremium && remoteConfig.premiumEnabled && remoteConfig.purchasesEnabled) {
                         Surface(
                             modifier = Modifier
                                 .padding(end = 12.dp)
@@ -171,37 +177,73 @@ fun HomeScreen(
                     customMessage = "Modo de Teste: ${AppConfig.currentEnvironment.displayName}"
                 )
             }
-            // Maintenance Mode Alert Card (Offline reading remains fully operational)
+            // Maintenance Mode Alert Card (Observes maintenance_level, message and estimated return date)
             if (remoteConfig.maintenance) {
                 item {
+                    val isFull = remoteConfig.maintenanceLevel.equals("full", ignoreCase = true)
+                    val isPartial = remoteConfig.maintenanceLevel.equals("partial", ignoreCase = true)
+                    val containerColor = when {
+                        isFull -> MaterialTheme.colorScheme.errorContainer
+                        isPartial -> Color(0xFFFEF3C7)
+                        else -> MaterialTheme.colorScheme.primaryContainer
+                    }
+                    val contentColor = when {
+                        isFull -> MaterialTheme.colorScheme.onErrorContainer
+                        isPartial -> Color(0xFF92400E)
+                        else -> MaterialTheme.colorScheme.onPrimaryContainer
+                    }
+                    val iconColor = when {
+                        isFull -> MaterialTheme.colorScheme.error
+                        isPartial -> Color(0xFFD97706)
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        colors = CardDefaults.cardColors(containerColor = containerColor),
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.Top
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.Warning,
+                                imageVector = if (isFull || isPartial) Icons.Outlined.Warning else Icons.Outlined.Info,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
+                                tint = iconColor,
                                 modifier = Modifier.size(28.dp)
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = "Modo de Manutenção",
+                                    text = remoteConfig.maintenanceTitle.ifBlank { "Modo de Manutenção" },
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                    color = contentColor
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = remoteConfig.maintenanceMessage,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                    color = contentColor
                                 )
+                                if (!remoteConfig.maintenanceEstimatedEnd.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Previsão de retorno: ${remoteConfig.maintenanceEstimatedEnd}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = contentColor.copy(alpha = 0.85f)
+                                    )
+                                }
+                                if (isFull) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Aviso: Sincronização e novos recursos pausados. Seus versículos locais permanecem disponíveis para leitura.",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = contentColor.copy(alpha = 0.8f)
+                                    )
+                                }
                             }
                         }
                     }

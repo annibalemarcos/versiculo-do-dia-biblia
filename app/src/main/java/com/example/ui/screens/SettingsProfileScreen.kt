@@ -33,6 +33,8 @@ import com.example.ui.components.TestModeBanner
 import com.example.ui.theme.Gold500
 import com.example.ui.theme.Navy800
 import com.example.ui.theme.Navy900
+import com.example.ui.theme.SageLight
+import com.example.ui.theme.SagePrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,7 +70,7 @@ fun SettingsProfileScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Configurações & Perfil",
+                        text = "ConfiguraÃ§Ãµes & Perfil",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -123,7 +125,7 @@ fun SettingsProfileScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = if (isLoggedIn) userName ?: "Usuário" else "Modo Anônimo",
+                                text = if (isLoggedIn) userName ?: "UsuÃ¡rio" else "Modo AnÃ´nimo",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -170,7 +172,28 @@ fun SettingsProfileScreen(
             }
 
             // Monetization & Premium Section
-            if (!isPremium) {
+            if (isPremium) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = SageLight),
+                    border = BorderStroke(1.dp, SagePrimary.copy(alpha = 0.3f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = SagePrimary, modifier = Modifier.size(26.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Assinatura Ativa", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = SagePrimary)
+                            Text("Acesso ilimitado sem anÃºncios e com todos os recursos", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            } else if (remoteConfig.premiumEnabled && remoteConfig.purchasesEnabled) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -190,7 +213,7 @@ fun SettingsProfileScreen(
                         Spacer(modifier = Modifier.width(14.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Seja Premium", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Gold500)
-                            Text("Remova anúncios e acesse todos os devocionais", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Remova anÃºncios e acesse todos os devocionais", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
                         }
                         Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = Gold500)
                     }
@@ -199,7 +222,7 @@ fun SettingsProfileScreen(
 
             // Cloud Sync Section
             val syncState by viewModel.syncState.collectAsState()
-            Text("Sincronização na Nuvem", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("SincronizaÃ§Ã£o na Nuvem", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -226,7 +249,7 @@ fun SettingsProfileScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Nuvem & Sincronização",
+                                text = "Nuvem & SincronizaÃ§Ã£o",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
@@ -242,43 +265,58 @@ fun SettingsProfileScreen(
                         }
                     }
 
-                    Button(
-                        onClick = {
-                            viewModel.triggerManualSync { success, msg ->
-                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    if (remoteConfig.cloudSyncEnabled) {
+                        Button(
+                            onClick = {
+                                viewModel.triggerManualSync { success, msg ->
+                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            enabled = syncState !is com.example.data.sync.SyncState.Syncing,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isLoggedIn) Gold500 else MaterialTheme.colorScheme.primary,
+                                contentColor = if (isLoggedIn) Navy900 else MaterialTheme.colorScheme.onPrimary
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (syncState is com.example.data.sync.SyncState.Syncing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    color = if (isLoggedIn) Navy900 else MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Sincronizando...")
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Sync,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Sincronizar Agora")
                             }
-                        },
-                        enabled = syncState !is com.example.data.sync.SyncState.Syncing,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isLoggedIn) Gold500 else MaterialTheme.colorScheme.primary,
-                            contentColor = if (isLoggedIn) Navy900 else MaterialTheme.colorScheme.onPrimary
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        if (syncState is com.example.data.sync.SyncState.Syncing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = if (isLoggedIn) Navy900 else MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp
+                        }
+                    } else {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Text(
+                                text = "SincronizaÃ§Ã£o em nuvem temporariamente desativada pelo administrador.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(12.dp)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Sincronizando...")
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Sync,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Sincronizar Agora")
                         }
                     }
                 }
             }
 
             // Appearance & Preferences
-            Text("Preferências", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("PreferÃªncias", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -310,7 +348,7 @@ fun SettingsProfileScreen(
             }
 
             // Help & Support
-            Text("Ajuda & Notificações", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Ajuda & NotificaÃ§Ãµes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -319,26 +357,39 @@ fun SettingsProfileScreen(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
             ) {
                 Column {
-                    SettingsRowItem(
-                        icon = Icons.Outlined.Notifications,
-                        title = "Central de Notificações",
-                        subtitle = "Mensagens diárias, devocionais e alertas",
-                        onClick = onNavigateToNotifications
-                    )
-                    Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
-                    SettingsRowItem(
-                        icon = Icons.Outlined.HelpOutline,
-                        title = "Central de Ajuda & Dúvidas (FAQ)",
-                        subtitle = "Perguntas frequentes e canais de suporte",
-                        onClick = onNavigateToHelpSupport
-                    )
-                    Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
-                    SettingsRowItem(
-                        icon = Icons.Outlined.SupportAgent,
-                        title = "Falar com o Suporte / Abrir Chamado",
-                        subtitle = "Envie uma mensagem direta para nossa equipe",
-                        onClick = onNavigateToHelpSupport
-                    )
+                    if (remoteConfig.notificationsEnabled) {
+                        SettingsRowItem(
+                            icon = Icons.Outlined.Notifications,
+                            title = "Central de NotificaÃ§Ãµes",
+                            subtitle = "Mensagens diÃ¡rias, devocionais e alertas",
+                            onClick = onNavigateToNotifications
+                        )
+                        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+                    }
+                    if (remoteConfig.supportEnabled) {
+                        SettingsRowItem(
+                            icon = Icons.Outlined.HelpOutline,
+                            title = "Central de Ajuda & DÃºvidas (FAQ)",
+                            subtitle = "Perguntas frequentes e canais de suporte",
+                            onClick = onNavigateToHelpSupport
+                        )
+                        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+                        SettingsRowItem(
+                            icon = Icons.Outlined.SupportAgent,
+                            title = "Falar com o Suporte / Abrir Chamado",
+                            subtitle = "Envie uma mensagem direta para nossa equipe",
+                            onClick = onNavigateToHelpSupport
+                        )
+                    } else {
+                        SettingsRowItem(
+                            icon = Icons.Outlined.HelpOutline,
+                            title = "Suporte Temporariamente IndisponÃ­vel",
+                            subtitle = "Canal de atendimento em manutenÃ§Ã£o",
+                            onClick = {
+                                Toast.makeText(context, "O suporte estÃ¡ temporariamente em manutenÃ§Ã£o.", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
                 }
             }
 
@@ -354,16 +405,16 @@ fun SettingsProfileScreen(
                 Column {
                     SettingsRowItem(
                         icon = Icons.Outlined.Shield,
-                        title = "Política de Privacidade & LGPD",
+                        title = "PolÃ­tica de Privacidade & LGPD",
                         onClick = { showPrivacyDialog = true }
                     )
                     Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
                     SettingsRowItem(
                         icon = Icons.Outlined.Info,
                         title = "Sobre o Aplicativo",
-                        subtitle = "Versão ${AppConfig.VERSION_NAME} (Build ${AppConfig.VERSION_CODE})",
+                        subtitle = "VersÃ£o ${AppConfig.VERSION_NAME} (Build ${AppConfig.VERSION_CODE})",
                         onClick = {
-                            Toast.makeText(context, "Versículo do Dia v${AppConfig.VERSION_NAME}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "VersÃ­culo do Dia v${AppConfig.VERSION_NAME}", Toast.LENGTH_SHORT).show()
                         }
                     )
                     if (isLoggedIn) {
@@ -384,7 +435,7 @@ fun SettingsProfileScreen(
         // Auth Dialog (Login / Register)
         if (showAuthDialog) {
             AlertDialog(
-                onDismissRequest = { 
+                onDismissRequest = {
                     if (!authLoading) {
                         showAuthDialog = false
                         authErrorMessage = null
@@ -417,7 +468,7 @@ fun SettingsProfileScreen(
                         if (isRegisterMode) {
                             OutlinedTextField(
                                 value = authName,
-                                onValueChange = { 
+                                onValueChange = {
                                     authName = it
                                     authErrorMessage = null
                                 },
@@ -428,7 +479,7 @@ fun SettingsProfileScreen(
                         }
                         OutlinedTextField(
                             value = authEmail,
-                            onValueChange = { 
+                            onValueChange = {
                                 authEmail = it
                                 authErrorMessage = null
                             },
@@ -438,7 +489,7 @@ fun SettingsProfileScreen(
                         )
                         OutlinedTextField(
                             value = authPassword,
-                            onValueChange = { 
+                            onValueChange = {
                                 authPassword = it
                                 authErrorMessage = null
                             },
@@ -446,16 +497,25 @@ fun SettingsProfileScreen(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth().testTag("auth_dialog_password_input")
                         )
-                        TextButton(
-                            onClick = { 
-                                isRegisterMode = !isRegisterMode
-                                authErrorMessage = null
-                            },
-                            modifier = Modifier.align(Alignment.End)
-                        ) {
+                        if (remoteConfig.registrationEnabled) {
+                            TextButton(
+                                onClick = {
+                                    isRegisterMode = !isRegisterMode
+                                    authErrorMessage = null
+                                },
+                                modifier = Modifier.align(Alignment.End)
+                            ) {
+                                Text(
+                                    text = if (isRegisterMode) "JÃ¡ tem uma conta? Entrar" else "NÃ£o tem conta? Cadastre-se",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        } else {
                             Text(
-                                text = if (isRegisterMode) "Já tem uma conta? Entrar" else "Não tem conta? Cadastre-se",
-                                style = MaterialTheme.typography.labelSmall
+                                text = "Novos cadastros desativados pelo administrador.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp)
                             )
                         }
                     }
@@ -464,7 +524,11 @@ fun SettingsProfileScreen(
                     Button(
                         onClick = {
                             if (authEmail.isBlank() || authPassword.isBlank()) {
-                                authErrorMessage = "Preencha todos os campos obrigatórios."
+                                authErrorMessage = "Preencha todos os campos obrigatÃ³rios."
+                                return@Button
+                            }
+                            if (isRegisterMode && !remoteConfig.registrationEnabled) {
+                                authErrorMessage = "Novos cadastros estÃ£o desativados pelo administrador."
                                 return@Button
                             }
                             if (isRegisterMode && authName.isBlank()) {
@@ -480,7 +544,7 @@ fun SettingsProfileScreen(
                                         Toast.makeText(context, "Conta criada com sucesso!", Toast.LENGTH_SHORT).show()
                                         showAuthDialog = false
                                     } else {
-                                        authErrorMessage = err ?: "Erro ao cadastrar usuário."
+                                        authErrorMessage = err ?: "Erro ao cadastrar usuÃ¡rio."
                                     }
                                 }
                             } else {
@@ -508,8 +572,8 @@ fun SettingsProfileScreen(
                 },
                 dismissButton = {
                     TextButton(
-                        onClick = { 
-                            showAuthDialog = false 
+                        onClick = {
+                            showAuthDialog = false
                             authErrorMessage = null
                         },
                         enabled = !authLoading
@@ -526,13 +590,13 @@ fun SettingsProfileScreen(
                 onDismissRequest = { showDeleteAccountDialog = false },
                 title = { Text("Excluir Conta Permanentemente") },
                 text = {
-                    Text("Tem certeza que deseja excluir sua conta? Todos os dados remotos e históricos sincronizados serão apagados em conformidade com a LGPD.")
+                    Text("Tem certeza que deseja excluir sua conta? Todos os dados remotos e histÃ³ricos sincronizados serÃ£o apagados em conformidade com a LGPD.")
                 },
                 confirmButton = {
                     Button(
                         onClick = {
                             viewModel.deleteAccount {
-                                Toast.makeText(context, "Conta excluída com sucesso.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Conta excluÃ­da com sucesso.", Toast.LENGTH_SHORT).show()
                                 showDeleteAccountDialog = false
                             }
                         },
@@ -553,16 +617,16 @@ fun SettingsProfileScreen(
         if (showPrivacyDialog) {
             AlertDialog(
                 onDismissRequest = { showPrivacyDialog = false },
-                title = { Text("Política de Privacidade & LGPD", fontWeight = FontWeight.Bold) },
+                title = { Text("PolÃ­tica de Privacidade & LGPD", fontWeight = FontWeight.Bold) },
                 text = {
                     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                         Text(
                             text = "Compromisso com sua Privacidade:\n\n" +
-                                    "1. O aplicativo funciona normalmente de forma offline e anônima.\n" +
-                                    "2. Suas emoções selecionadas são estritamente confidenciais e JAMAIS serão utilizadas para segmentação de anúncios ou perfil comercial.\n" +
-                                    "3. Dados sincronizados (favoritos e histórico) contam com criptografia padrão da indústria.\n" +
-                                    "4. Você tem direito à exclusão completa dos seus dados a qualquer momento pelo botão 'Excluir Minha Conta'.\n\n" +
-                                    "Desenvolvido com respeito e ética espiritual.",
+                                    "1. O aplicativo funciona normalmente de forma offline e anÃ´nima.\n" +
+                                    "2. Suas emoÃ§Ãµes selecionadas sÃ£o estritamente confidenciais e JAMAIS serÃ£o utilizadas para segmentaÃ§Ã£o de anÃºncios ou perfil comercial.\n" +
+                                    "3. Dados sincronizados (favoritos e histÃ³rico) contam com criptografia padrÃ£o da indÃºstria.\n" +
+                                    "4. VocÃª tem direito Ã  exclusÃ£o completa dos seus dados a qualquer momento pelo botÃ£o 'Excluir Minha Conta'.\n\n" +
+                                    "Desenvolvido com respeito e Ã©tica espiritual.",
                             style = MaterialTheme.typography.bodyMedium,
                             lineHeight = 22.sp
                         )

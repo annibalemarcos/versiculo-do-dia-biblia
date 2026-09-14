@@ -4,11 +4,28 @@ from typing import List
 from datetime import datetime, timezone
 from app.core.database import get_db
 from app.core.dependencies import get_current_user_required
-from app.core.errors import NotFoundException
+from app.models.app import AppConfig
 from app.models.user import User, Favorite, ReadingHistory, UserPreference
 from app.schemas.user import FavoriteDto, ReadingHistoryDto, PreferenceDto
+from app.core.errors import NotFoundException, AppException
 
-router = APIRouter(prefix="/me", tags=["Public User Data Sync"])
+router = APIRouter(prefix="/user", tags=["Public User Data & Sync"])
+
+def _check_cloud_sync_allowed(db: Session, app_id: str):
+    cfg = db.query(AppConfig).filter(AppConfig.app_id == app_id).first()
+    if cfg:
+        if cfg.maintenance_mode and cfg.maintenance_level == "full":
+            raise AppException(
+                code="MAINTENANCE_BLOCKED",
+                message=cfg.maintenance_message or "Sincronização em nuvem temporariamente suspensa para manutenção.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        if not cfg.cloud_sync_enabled:
+            raise AppException(
+                code="SYNC_DISABLED",
+                message="A sincronização com a nuvem está temporariamente desativada pela administração.",
+                status_code=status.HTTP_403_FORBIDDEN
+            )
 
 @router.get("/favorites")
 def get_user_favorites(
@@ -39,6 +56,7 @@ def add_user_favorite(
     user: User = Depends(get_current_user_required),
     db: Session = Depends(get_db)
 ):
+    _check_cloud_sync_allowed(db, user.app_id)
     existing = db.query(Favorite).filter(
         Favorite.user_id == user.id,
         Favorite.verse_id == body.verse_id
@@ -73,6 +91,7 @@ def remove_user_favorite(
     user: User = Depends(get_current_user_required),
     db: Session = Depends(get_db)
 ):
+    _check_cloud_sync_allowed(db, user.app_id)
     fav = db.query(Favorite).filter(
         Favorite.user_id == user.id,
         Favorite.verse_id == verse_id
@@ -114,6 +133,7 @@ def add_reading_history(
     user: User = Depends(get_current_user_required),
     db: Session = Depends(get_db)
 ):
+    _check_cloud_sync_allowed(db, user.app_id)
     entry = ReadingHistory(
         user_id=user.id,
         verse_id=body.verse_id,
@@ -156,6 +176,7 @@ def update_preferences(
     user: User = Depends(get_current_user_required),
     db: Session = Depends(get_db)
 ):
+    _check_cloud_sync_allowed(db, user.app_id)
     pref = db.query(UserPreference).filter(UserPreference.user_id == user.id).first()
     if not pref:
         pref = UserPreference(user_id=user.id)

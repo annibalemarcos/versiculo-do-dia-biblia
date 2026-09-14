@@ -95,7 +95,22 @@ def get_app_config(
         "data": {
             "app_id": cfg.app_id,
             "maintenance_mode": cfg.maintenance_mode,
+            "maintenance_level": getattr(cfg, "maintenance_level", "informational"),
+            "maintenance_title": getattr(cfg, "maintenance_title", None),
             "maintenance_message": cfg.maintenance_message,
+            "maintenance_estimated_end": cfg.maintenance_estimated_end.isoformat() if getattr(cfg, "maintenance_estimated_end", None) else None,
+            "registration_enabled": getattr(cfg, "registration_enabled", True),
+            "purchases_enabled": getattr(cfg, "purchases_enabled", True),
+            "premium_enabled": getattr(cfg, "premium_enabled", True),
+            "notifications_enabled": getattr(cfg, "notifications_enabled", True),
+            "support_enabled": getattr(cfg, "support_enabled", True),
+            "cloud_sync_enabled": getattr(cfg, "cloud_sync_enabled", True),
+            "devotionals_enabled": getattr(cfg, "devotionals_enabled", True),
+            "search_enabled": getattr(cfg, "search_enabled", True),
+            "sharing_enabled": getattr(cfg, "sharing_enabled", True),
+            "offline_download_enabled": getattr(cfg, "offline_download_enabled", True),
+            "google_login_enabled": getattr(cfg, "google_login_enabled", False),
+            "updated_by": getattr(cfg, "updated_by", None),
             "minimum_supported_version": cfg.minimum_supported_version,
             "latest_version": cfg.latest_version,
             "force_update": cfg.force_update,
@@ -119,10 +134,47 @@ def update_app_config(
         cfg = AppConfig(app_id=app_id)
         db.add(cfg)
 
+    # Validate maintenance level
+    if body.maintenance_level is not None:
+        if body.maintenance_level not in ["informational", "partial", "full"]:
+            from app.core.errors import BadRequestException
+            raise BadRequestException("Nível de manutenção inválido. Permitidos: informational, partial, full")
+        cfg.maintenance_level = body.maintenance_level
+
     if body.maintenance_mode is not None:
         cfg.maintenance_mode = body.maintenance_mode
+    if body.maintenance_title is not None:
+        cfg.maintenance_title = body.maintenance_title
     if body.maintenance_message is not None:
         cfg.maintenance_message = body.maintenance_message
+    if body.maintenance_estimated_end is not None:
+        cfg.maintenance_estimated_end = body.maintenance_estimated_end
+
+    if body.registration_enabled is not None:
+        cfg.registration_enabled = body.registration_enabled
+    if body.purchases_enabled is not None:
+        cfg.purchases_enabled = body.purchases_enabled
+    if body.premium_enabled is not None:
+        cfg.premium_enabled = body.premium_enabled
+    if body.notifications_enabled is not None:
+        cfg.notifications_enabled = body.notifications_enabled
+    if body.support_enabled is not None:
+        cfg.support_enabled = body.support_enabled
+    if body.cloud_sync_enabled is not None:
+        cfg.cloud_sync_enabled = body.cloud_sync_enabled
+    if body.devotionals_enabled is not None:
+        cfg.devotionals_enabled = body.devotionals_enabled
+    if body.search_enabled is not None:
+        cfg.search_enabled = body.search_enabled
+    if body.sharing_enabled is not None:
+        cfg.sharing_enabled = body.sharing_enabled
+    if body.offline_download_enabled is not None:
+        cfg.offline_download_enabled = body.offline_download_enabled
+    if body.google_login_enabled is not None:
+        cfg.google_login_enabled = body.google_login_enabled
+
+    cfg.updated_by = getattr(admin, "id", None) or getattr(admin, "email", "admin")
+
     if body.minimum_supported_version is not None:
         cfg.minimum_supported_version = body.minimum_supported_version
     if body.latest_version is not None:
@@ -145,7 +197,14 @@ def update_app_config(
         resource_type="app_config",
         resource_id=app_id,
         ip_address=request.client.host if request.client else None,
-        meta_data={"maintenance_mode": cfg.maintenance_mode, "force_update": cfg.force_update}
+        meta_data={
+            "maintenance_mode": cfg.maintenance_mode,
+            "maintenance_level": cfg.maintenance_level,
+            "registration_enabled": cfg.registration_enabled,
+            "purchases_enabled": cfg.purchases_enabled,
+            "premium_enabled": cfg.premium_enabled,
+            "force_update": cfg.force_update
+        }
     )
 
     return {"success": True, "message": "Configurações do aplicativo atualizadas com sucesso"}

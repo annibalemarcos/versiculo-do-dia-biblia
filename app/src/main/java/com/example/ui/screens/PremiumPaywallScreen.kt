@@ -12,9 +12,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Diamond
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
@@ -37,6 +39,8 @@ import com.example.ui.MainViewModel
 import com.example.ui.theme.Gold500
 import com.example.ui.theme.Navy800
 import com.example.ui.theme.Navy900
+import com.example.ui.theme.SageLight
+import com.example.ui.theme.SagePrimary
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,6 +55,8 @@ fun PremiumPaywallScreen(
     val billingProvider = viewModel.billingProvider
     val purchaseState by billingProvider.purchaseState.collectAsState()
     val plans by billingProvider.availablePlans.collectAsState()
+    val remoteConfig by viewModel.remoteConfig.collectAsState()
+    val isPremium by viewModel.isPremium.collectAsState()
 
     var selectedPlanId by remember { mutableStateOf("premium_yearly") }
 
@@ -92,137 +98,319 @@ fun PremiumPaywallScreen(
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header icon
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .background(
-                        Brush.linearGradient(listOf(Gold500, Navy800)),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Diamond,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.background,
-                    modifier = Modifier.size(44.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Bíblia Diária Premium",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = "Aprofunde sua comunhão diária sem distrações e com recursos exclusivos.",
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Benefit Items
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                BenefitRow(
-                    icon = Icons.Default.Block,
-                    title = "100% Sem Anúncios",
-                    description = "Foco total na leitura e oração, sem nenhuma interrupção."
-                )
-                BenefitRow(
-                    icon = Icons.Default.MenuBook,
-                    title = "Todos os Planos Devocionais",
-                    description = "Acesso irrestrito a dezenas de jornadas guiadas e reflexões."
-                )
-                BenefitRow(
-                    icon = Icons.Default.CloudDownload,
-                    title = "Modo Offline Ilimitado",
-                    description = "Acesse toda a Bíblia e devocionais sem conexão com internet."
-                )
-                BenefitRow(
-                    icon = Icons.Default.Star,
-                    title = "Temas e Cartões Exclusivos",
-                    description = "Novos designs de compartilhamento e categorias bíblicas especiais."
-                )
-            }
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            // Plan Selectors
-            Text(
-                text = "Escolha o seu plano:",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.Start)
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                plans.forEach { plan ->
-                    PlanCard(
-                        plan = plan,
-                        isSelected = selectedPlanId == plan.productId,
-                        onClick = { selectedPlanId = plan.productId }
+            if (isPremium) {
+                // ACTIVE PREMIUM SUBSCRIBER VIEW
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(
+                            Brush.linearGradient(listOf(Gold500, SagePrimary)),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.background,
+                        modifier = Modifier.size(44.dp)
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(28.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // CTA Button
-            Button(
-                onClick = {
-                    scope.launch {
-                        viewModel.analyticsTracker.logPurchaseStarted(selectedPlanId)
-                        val success = billingProvider.purchasePlan(selectedPlanId)
-                        if (success) {
-                            viewModel.analyticsTracker.logPurchaseCompleted(selectedPlanId)
-                            Toast.makeText(context, "Plano Premium ativado com sucesso!", Toast.LENGTH_SHORT).show()
-                            onClose()
-                        } else {
-                            Toast.makeText(context, "Não foi possível concluir a compra.", Toast.LENGTH_SHORT).show()
+                Text(
+                    text = "Sua Assinatura Premium está Ativa",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = "Você já possui acesso completo a todos os recursos exclusivos sem nenhuma interrupção.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    BenefitRow(
+                        icon = Icons.Default.Block,
+                        title = "100% Sem Anúncios (Ativo)",
+                        description = "Foco total na leitura e oração, sem nenhuma distração."
+                    )
+                    BenefitRow(
+                        icon = Icons.Default.MenuBook,
+                        title = "Todos os Planos Devocionais",
+                        description = "Acesso irrestrito a dezenas de jornadas guiadas e reflexões."
+                    )
+                    BenefitRow(
+                        icon = Icons.Default.CloudDownload,
+                        title = "Modo Offline Ilimitado",
+                        description = "Toda a Bíblia e devocionais disponíveis sem internet."
+                    )
+                    BenefitRow(
+                        icon = Icons.Default.Star,
+                        title = "Temas e Cartões Exclusivos",
+                        description = "Todos os designs de compartilhamento e categorias bíblicas especiais."
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Gerenciamento da Assinatura",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Sua assinatura é processada com segurança pelo Google Play. Para gerenciar ou atualizar sua forma de pagamento, acesse a Google Play Store.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                OutlinedButton(
+                    onClick = {
+                        scope.launch {
+                            val restored = billingProvider.restorePurchases()
+                            if (restored) {
+                                Toast.makeText(context, "Assinatura sincronizada e ativa!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Sincronização concluída com sucesso.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .testTag("sync_subscription_button"),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Gold500)
+                ) {
+                    Text("Sincronizar Assinatura", color = Gold500, fontWeight = FontWeight.SemiBold)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = onClose,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .testTag("close_premium_button"),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("Continuar Leitura", fontWeight = FontWeight.Bold)
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+            } else {
+                // NON-PREMIUM USER VIEW
+                val canPurchase = remoteConfig.premiumEnabled && remoteConfig.purchasesEnabled
+
+                // Header icon
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(
+                            Brush.linearGradient(listOf(Gold500, Navy800)),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Diamond,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.background,
+                        modifier = Modifier.size(44.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Bíblia Diária Premium",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = "Aprofunde sua comunhão diária sem distrações e com recursos exclusivos.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Benefit Items
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    BenefitRow(
+                        icon = Icons.Default.Block,
+                        title = "100% Sem Anúncios",
+                        description = "Foco total na leitura e oração, sem nenhuma interrupção."
+                    )
+                    BenefitRow(
+                        icon = Icons.Default.MenuBook,
+                        title = "Todos os Planos Devocionais",
+                        description = "Acesso irrestrito a dezenas de jornadas guiadas e reflexões."
+                    )
+                    BenefitRow(
+                        icon = Icons.Default.CloudDownload,
+                        title = "Modo Offline Ilimitado",
+                        description = "Acesse toda a Bíblia e devocionais sem conexão com internet."
+                    )
+                    BenefitRow(
+                        icon = Icons.Default.Star,
+                        title = "Temas e Cartões Exclusivos",
+                        description = "Novos designs de compartilhamento e categorias bíblicas especiais."
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                if (canPurchase) {
+                    // Plan Selectors
+                    Text(
+                        text = "Escolha o seu plano:",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.align(Alignment.Start)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        plans.forEach { plan ->
+                            PlanCard(
+                                plan = plan,
+                                isSelected = selectedPlanId == plan.productId,
+                                onClick = { selectedPlanId = plan.productId }
+                            )
                         }
                     }
-                },
-                enabled = purchaseState != PurchaseState.PENDING,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .testTag("subscribe_button"),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Gold500, contentColor = Navy900)
-            ) {
-                if (purchaseState == PurchaseState.PENDING) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Navy900)
-                } else {
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // CTA Button
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                viewModel.analyticsTracker.logPurchaseStarted(selectedPlanId)
+                                val success = billingProvider.purchasePlan(selectedPlanId)
+                                if (success) {
+                                    viewModel.analyticsTracker.logPurchaseCompleted(selectedPlanId)
+                                    Toast.makeText(context, "Plano Premium ativado com sucesso!", Toast.LENGTH_SHORT).show()
+                                    onClose()
+                                } else {
+                                    Toast.makeText(context, "Não foi possível concluir a compra.", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        enabled = purchaseState != PurchaseState.PENDING,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .testTag("subscribe_button"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Gold500, contentColor = Navy900)
+                    ) {
+                        if (purchaseState == PurchaseState.PENDING) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Navy900)
+                        } else {
+                            Text(
+                                text = "Assinar e Desbloquear",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     Text(
-                        text = "Assinar e Desbloquear",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        text = "Cobrado via Google Play. Cancele a qualquer momento nas configurações da sua conta Google.",
+                        style = MaterialTheme.typography.labelSmall,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp
                     )
+                } else {
+                    // Purchases or Premium disabled via remote governance
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Novas assinaturas estão temporariamente pausadas para manutenção programada. Se você já assinou anteriormente, utilize a opção 'Restaurar' no topo da tela para recuperar seus benefícios.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                val restored = billingProvider.restorePurchases()
+                                if (restored) {
+                                    Toast.makeText(context, "Compras restauradas com sucesso!", Toast.LENGTH_SHORT).show()
+                                    onClose()
+                                } else {
+                                    Toast.makeText(context, "Nenhuma assinatura ativa encontrada.", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .testTag("restore_purchases_button"),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, Gold500)
+                    ) {
+                        Text("Restaurar Assinatura Existente", color = Gold500, fontWeight = FontWeight.SemiBold)
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(32.dp))
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Cobrado via Google Play. Cancele a qualquer momento nas configurações da sua conta Google.",
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }

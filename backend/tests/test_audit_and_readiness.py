@@ -21,7 +21,7 @@ def client():
 def test_check_database_health_success():
     """
     Verifica se check_database_health executa SELECT 1 e retorna
-    indicador de banco disponÃ­vel, tempo de resposta e nenhum erro.
+    indicador de banco disponÃƒÂ­vel, tempo de resposta e nenhum erro.
     """
     result = check_database_health()
     assert result is not None
@@ -37,9 +37,9 @@ def test_check_database_health_success():
 
 def test_check_database_health_failure_and_zero_secret_leak():
     """
-    Verifica se em caso de falha de conexÃ£o (com exceÃ§Ã£o contendo URL ou senha confidencial):
+    Verifica se em caso de falha de conexÃƒÂ£o (com exceÃƒÂ§ÃƒÂ£o contendo URL ou senha confidencial):
     1. O resultado indica status 'unavailable' e healthy=False.
-    2. Nenhuma credencial ou URL sensÃ­vel vaza no retorno de erro.
+    2. Nenhuma credencial ou URL sensÃƒÂ­vel vaza no retorno de erro.
     """
     secret_password = "pAssw0rd_SuperSecret_987654"
     sensitive_url = f"postgresql://admin:{secret_password}@production-db.internal:5432/secrets_db"
@@ -61,7 +61,7 @@ def test_check_database_health_failure_and_zero_secret_leak():
 def test_readiness_endpoint_200_when_database_healthy(client):
     """
     Verifica se os endpoints de readiness (/health/ready e /ready)
-    retornam HTTP 200 OK quando o banco de dados estÃ¡ disponÃ­vel.
+    retornam HTTP 200 OK quando o banco de dados estÃƒÂ¡ disponÃƒÂ­vel.
     """
     for endpoint in ["/health/ready", "/ready", "/api/v1/health/ready"]:
         response = client.get(endpoint)
@@ -74,7 +74,7 @@ def test_readiness_endpoint_200_when_database_healthy(client):
 def test_readiness_endpoint_503_when_database_unavailable(client):
     """
     Verifica se o endpoint de readiness (/health/ready) retorna
-    HTTP 503 Service Unavailable quando o PostgreSQL ou banco estiver inacessÃ­vel.
+    HTTP 503 Service Unavailable quando o PostgreSQL ou banco estiver inacessÃƒÂ­vel.
     """
     from app.core.database import DatabaseHealthResult
     failing_health = DatabaseHealthResult(
@@ -96,7 +96,7 @@ def test_readiness_endpoint_503_when_database_unavailable(client):
 def test_readiness_endpoint_zero_secret_leak_on_exception(client):
     """
     Verifica se mesmo com falha grave contendo secrets, a resposta 503
-    nÃ£o expÃµe nenhuma informaÃ§Ã£o confidencial.
+    nÃƒÂ£o expÃƒÂµe nenhuma informaÃƒÂ§ÃƒÂ£o confidencial.
     """
     secret_token = "jwt-super-secret-token-key-12345"
     failing_health = {
@@ -114,8 +114,8 @@ def test_readiness_endpoint_zero_secret_leak_on_exception(client):
 
 def test_audit_metadata_sanitization():
     """
-    Verifica se a funÃ§Ã£o de sanitizaÃ§Ã£o de metadados de auditoria
-    remove ou mascara senhas, tokens, secrets e chaves sensÃ­veis.
+    Verifica se a funÃƒÂ§ÃƒÂ£o de sanitizaÃƒÂ§ÃƒÂ£o de metadados de auditoria
+    remove ou mascara senhas, tokens, secrets e chaves sensÃƒÂ­veis.
     """
     raw_metadata = {
         "user_id": "usr_123",
@@ -140,8 +140,8 @@ def test_audit_metadata_sanitization():
 
 def test_health_service_no_jwt_secret_attribute_and_secret_key_used():
     """
-    Verifica que o health_service nÃ£o referencia o atributo inexistente 'JWT_SECRET'
-    em Settings e utiliza canonicamente 'SECRET_KEY' sem lanÃ§ar AttributeError.
+    Verifica que o health_service nÃƒÂ£o referencia o atributo inexistente 'JWT_SECRET'
+    em Settings e utiliza canonicamente 'SECRET_KEY' sem lanÃƒÂ§ar AttributeError.
     """
     import ast
 
@@ -156,18 +156,18 @@ def test_health_service_no_jwt_secret_attribute_and_secret_key_used():
     ]
     assert len(jwt_secret_nodes) == 0, f"Found unexpected JWT_SECRET references at lines: {jwt_secret_nodes}"
 
-    # Valida que com SECRET_KEY configurada o diagnÃ³stico opera normalmente
+    # Valida que com SECRET_KEY configurada o diagnÃƒÂ³stico opera normalmente
     from app.core.config import settings
-    assert hasattr(settings, "SECRET_KEY"), "settings deve conter o atributo canÃ´nico SECRET_KEY"
-    assert not hasattr(settings, "JWT_SECRET"), "settings nÃ£o deve conter o atributo JWT_SECRET"
+    assert hasattr(settings, "SECRET_KEY"), "settings deve conter o atributo canÃƒÂ´nico SECRET_KEY"
+    assert not hasattr(settings, "JWT_SECRET"), "settings nÃƒÂ£o deve conter o atributo JWT_SECRET"
 
 
-def test_create_ticket_exception_handling_no_name_error_and_canonical_500():
+def test_create_ticket_exception_handling_no_name_error_and_canonical_500(client):
     """
     Verifica que uma falha durante create_ticket():
-    1. NÃ£o lanÃ§a NameError (ex: por classe inexistente InternalServerException).
-    2. Retorna envelope canÃ´nico HTTP 500 com cÃ³digo INTERNAL_SERVER_ERROR.
-    3. NÃ£o vaza detalhes de banco ou stack trace para o cliente.
+    1. NÃƒÂ£o lanÃƒÂ§a NameError (ex: por classe inexistente InternalServerException).
+    2. Retorna envelope canÃƒÂ´nico HTTP 500 com cÃƒÂ³digo INTERNAL_SERVER_ERROR.
+    3. NÃƒÂ£o vaza detalhes de banco ou stack trace para o cliente.
     """
     from app.core.errors import AppException
 
@@ -176,19 +176,19 @@ def test_create_ticket_exception_handling_no_name_error_and_canonical_500():
 
     payload = {
         "subject": "Problema com assinatura",
-        "description": "NÃ£o consigo restaurar minhas compras no aplicativo",
+        "description": "Não consigo restaurar minhas compras no aplicativo",
         "category": "BILLING",
         "priority": "HIGH",
         "guest_name": "Maria Silva",
         "guest_email": "maria@example.com"
     }
 
-    # ForÃ§a uma exceÃ§Ã£o interna simulada no create_ticket
+    # ForÃƒÂ§a uma exceÃƒÂ§ÃƒÂ£o interna simulada no create_ticket
     with patch("app.api.public.support.create_ticket", side_effect=RuntimeError("Simulated DB connection failure")):
         response = safe_client.post("/api/v1/support/tickets", json=payload)
         assert response.status_code == 500
         data = response.json()
         assert data["success"] is False
         assert data["error"]["code"] == "INTERNAL_SERVER_ERROR"
-        assert data["error"]["message"] == "Ocorreu um erro interno ao processar sua solicitaÃ§Ã£o."
+        assert data["error"]["message"] == "Ocorreu um erro interno ao processar sua solicitação."
         assert "Simulated DB connection failure" not in response.text

@@ -24,18 +24,25 @@ android {
   }
 
   signingConfigs {
-    create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+    val releaseKeystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
+    val releaseKeystoreFile = file(releaseKeystorePath)
+    if (releaseKeystoreFile.exists()) {
+      create("release") {
+        storeFile = releaseKeystoreFile
+        storePassword = System.getenv("STORE_PASSWORD")
+        keyAlias = "upload"
+        keyPassword = System.getenv("KEY_PASSWORD")
+      }
     }
-    create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
+
+    val debugKeystoreFile = file("${rootDir}/debug.keystore")
+    if (debugKeystoreFile.exists()) {
+      create("debugConfig") {
+        storeFile = debugKeystoreFile
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      }
     }
   }
 
@@ -44,13 +51,13 @@ android {
       isCrunchPngs = false
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("release")
-      buildConfigField("String", "BASE_API_URL", "\"https://biblia-api.larzusapps.com/api/v1/\"")
+        signingConfigs.findByName("release")?.let { signingConfig = it }
+        buildConfigField("String", "BASE_API_URL", "\"https://biblia-api.larzusapps.com/api/v1/\"")
       buildConfigField("String", "STAGING_API_URL", "\"https://staging-api.larzusapps.com/api/v1/\"")
       buildConfigField("String", "DEBUG_API_URL", "\"\"")
     }
     debug {
-      signingConfig = signingConfigs.getByName("debugConfig")
+      signingConfig = signingConfigs.findByName("debugConfig") ?: signingConfigs.getByName("debug")
       val debugUrl = (project.findProperty("DEBUG_API_URL") as? String)
           ?: System.getenv("DEBUG_API_URL")
           ?: "http://10.0.2.2:8000/api/v1/"

@@ -210,6 +210,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val userProfile = preferencesManager.userProfile
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), Triple(null, null, false))
 
+    val isPremium: StateFlow<Boolean> = preferencesManager.isPremium
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val dailyVerse: StateFlow<DailyVerseEntity?> = bibleRepository.getDailyVerseFlow()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 

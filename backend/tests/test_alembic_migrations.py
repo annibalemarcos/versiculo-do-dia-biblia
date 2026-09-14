@@ -88,7 +88,7 @@ def test_traverse_migration_files_and_validate_chain():
     # Uma HEAD é uma revision que não é down_revision de nenhuma outra
     heads = [rev for rev in revisions_found if rev not in down_references]
     assert len(heads) == 1, f"Esperava exatamente uma HEAD, mas encontrou {len(heads)}: {heads}"
-    assert heads[0] == "006_ticket_seq_user_soft_del", f"HEAD esperada é '006_ticket_seq_user_soft_del', mas obteve '{heads[0]}'"
+    assert heads[0] == "007_app_remote_governance", f"HEAD esperada é '007_app_remote_governance', mas obteve '{heads[0]}'"
 
 def test_all_revision_ids_within_postgresql_varchar_32_limit(script_directory):
     """
@@ -127,13 +127,18 @@ def test_migration_chain_integrity_and_head(script_directory):
       -> 004_consolidation_updates
       -> 005_schema_alignment
       -> 006_ticket_seq_user_soft_del
-    And that HEAD is 006_ticket_seq_user_soft_del.
+      -> 007_app_remote_governance
+    And that HEAD is 007_app_remote_governance.
     """
     heads = script_directory.get_heads()
     assert len(heads) == 1, f"Expected single head, got: {heads}"
-    assert heads[0] == "006_ticket_seq_user_soft_del", f"Expected HEAD to be '006_ticket_seq_user_soft_del', got '{heads[0]}'"
+    assert heads[0] == "007_app_remote_governance", f"Expected HEAD to be '007_app_remote_governance', got '{heads[0]}'"
 
     # Walk from head backwards to verify chain
+    rev_007 = script_directory.get_revision("007_app_remote_governance")
+    assert rev_007 is not None
+    assert rev_007.down_revision == "006_ticket_seq_user_soft_del"
+
     rev_006 = script_directory.get_revision("006_ticket_seq_user_soft_del")
     assert rev_006 is not None
     assert rev_006.down_revision == "005_schema_alignment"
@@ -191,6 +196,7 @@ def test_simulated_postgresql_varchar_32_constraint(script_directory):
         "004_consolidation_updates",
         "005_schema_alignment",
         "006_ticket_seq_user_soft_del",
+        "007_app_remote_governance",
     ]
 
     with engine.begin() as conn:
@@ -207,7 +213,7 @@ def test_simulated_postgresql_varchar_32_constraint(script_directory):
 
         # Confirm final version
         res = conn.exec_driver_sql("SELECT version_num FROM alembic_version;").scalar()
-        assert res == "006_ticket_seq_user_soft_del"
+        assert res == "007_app_remote_governance"
 
 def test_all_models_present_in_migration_schema():
     """

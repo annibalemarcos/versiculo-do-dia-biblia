@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token, decode_jwt_token
-from app.core.errors import UnauthorizedException, ConflictException, NotFoundException
+from app.core.errors import UnauthorizedException, ConflictException, NotFoundException, AppException
 from app.core.dependencies import get_current_user_required
 from app.models.user import User, UserPreference
 from app.schemas.user import (
@@ -16,6 +16,24 @@ def register_user(
     body: UserRegisterRequest,
     db: Session = Depends(get_db)
 ):
+    from app.models.app import AppConfig
+    # Server-side enforcement: Check AppConfig for maintenance and registration_enabled
+    cfg = db.query(AppConfig).filter(AppConfig.app_id == body.app_id).first()
+    if cfg:
+        if cfg.maintenance_mode and cfg.maintenance_level in ["partial", "full"]:
+            raise AppException(
+                code="MAINTENANCE_BLOCKED",
+                message=cfg.maintenance_message or "O cadastro de novos usuários está temporariamente suspenso para manutenção.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                details={"maintenance_level": cfg.maintenance_level, "estimated_end": cfg.maintenance_estimated_end.isoformat() if cfg.maintenance_estimated_end else None}
+            )
+        if not cfg.registration_enabled:
+            raise AppException(
+                code="REGISTRATION_DISABLED",
+                message="Novos cadastros estão temporariamente desativados pela administração.",
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+
     existing = db.query(User).filter(User.email == body.email).first()
     if existing:
         raise ConflictException("Este e-mail já está cadastrado")

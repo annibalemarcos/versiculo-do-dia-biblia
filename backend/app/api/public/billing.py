@@ -87,6 +87,7 @@ def get_billing_status(
 def verify_google_play_purchase(
     body: VerifyPurchaseRequest,
     user: User = Depends(get_current_user_required),
+    app_id: str = Depends(get_current_app_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -94,6 +95,23 @@ def verify_google_play_purchase(
     If Google Play Developer Service Account JSON is not yet provided in env,
     it marks the event with status 'EXTERNAL CONFIGURATION REQUIRED' and safely logs the masked token.
     """
+    from app.models.app import AppConfig
+    cfg = db.query(AppConfig).filter(AppConfig.app_id == app_id).first()
+    if cfg:
+        if cfg.maintenance_mode and cfg.maintenance_level in ["partial", "full"]:
+            raise AppException(
+                code="MAINTENANCE_BLOCKED",
+                message=cfg.maintenance_message or "Processamento de compras temporariamente suspenso para manutenção.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                details={"maintenance_level": cfg.maintenance_level, "estimated_end": cfg.maintenance_estimated_end.isoformat() if cfg.maintenance_estimated_end else None}
+            )
+        if not cfg.purchases_enabled or not cfg.premium_enabled:
+            raise AppException(
+                code="PURCHASES_DISABLED",
+                message="Novas compras e assinaturas estão temporariamente desativadas pela administração.",
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+
     masked_token = f"...{body.purchase_token[-6:]}" if len(body.purchase_token) >= 6 else "...***"
 
     # Check if product exists in database

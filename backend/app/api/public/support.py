@@ -29,7 +29,7 @@ ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"
 MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
 
 def _serialize_ticket_summary(t: SupportTicket) -> dict:
-    user_name = t.user.name if t.user else (t.guest_name or "Anônimo")
+    user_name = t.user.name if t.user else (t.guest_name or "AnÃ´nimo")
     user_email = t.user.email if t.user else t.guest_email
     assigned_name = t.assigned_admin.name if t.assigned_admin else None
 
@@ -58,7 +58,7 @@ def _serialize_ticket_summary(t: SupportTicket) -> dict:
     }
 
 def _serialize_ticket_detail_for_user(t: SupportTicket) -> dict:
-    user_name = t.user.name if t.user else (t.guest_name or "Anônimo")
+    user_name = t.user.name if t.user else (t.guest_name or "AnÃ´nimo")
     user_email = t.user.email if t.user else t.guest_email
     assigned_name = t.assigned_admin.name if t.assigned_admin else None
 
@@ -70,7 +70,7 @@ def _serialize_ticket_detail_for_user(t: SupportTicket) -> dict:
             "sender_type": m.sender_type,
             "sender_user_id": m.sender_user_id,
             "sender_admin_id": m.sender_admin_id,
-            "sender_name": m.sender_name or ("Suporte" if m.sender_type == "ADMIN" else "Você"),
+            "sender_name": m.sender_name or ("Suporte" if m.sender_type == "ADMIN" else "VocÃª"),
             "message": m.message,
             "is_internal_note": False,
             "created_at": m.created_at,
@@ -145,6 +145,22 @@ def create_support_ticket(
     """
     Creates a new support ticket by an authenticated user or guest.
     """
+    from app.models.app import AppConfig
+    cfg = db.query(AppConfig).filter(AppConfig.app_id == app_id).first()
+    if cfg:
+        if cfg.maintenance_mode and cfg.maintenance_level == "full":
+            raise AppException(
+                code="MAINTENANCE_BLOCKED",
+                message=cfg.maintenance_message or "Abertura de chamados suspensa para manutenção.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        if not cfg.support_enabled:
+            raise AppException(
+                code="SUPPORT_DISABLED",
+                message="A abertura de novos chamados de suporte está temporariamente desativada.",
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+
     try:
         user_id = current_user.id if current_user else None
         guest_email = body.guest_email if not current_user else None
@@ -203,11 +219,11 @@ def get_my_support_ticket(
     """
     ticket = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
     if not ticket:
-        raise NotFoundException("Chamado de suporte não encontrado.")
+        raise NotFoundException("Chamado de suporte nÃ£o encontrado.")
 
     # Strict horizontal access check
     if ticket.user_id != current_user.id:
-        raise ForbiddenException("Você não tem permissão para visualizar este chamado.")
+        raise ForbiddenException("VocÃª nÃ£o tem permissÃ£o para visualizar este chamado.")
 
     return {
         "success": True,
@@ -226,10 +242,10 @@ def reply_to_support_ticket(
     """
     ticket = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
     if not ticket:
-        raise NotFoundException("Chamado de suporte não encontrado.")
+        raise NotFoundException("Chamado de suporte nÃ£o encontrado.")
 
     if ticket.user_id != current_user.id:
-        raise ForbiddenException("Você não tem permissão para responder neste chamado.")
+        raise ForbiddenException("VocÃª nÃ£o tem permissÃ£o para responder neste chamado.")
 
     msg = add_ticket_message(
         db=db,
@@ -238,7 +254,7 @@ def reply_to_support_ticket(
         message=body.message,
         is_internal_note=False,
         sender_user_id=current_user.id,
-        sender_name=current_user.name or current_user.email or "Usuário"
+        sender_name=current_user.name or current_user.email or "UsuÃ¡rio"
     )
 
     return {
@@ -266,7 +282,7 @@ async def upload_ticket_attachment(
     """
     ticket = db.query(SupportTicket).filter(SupportTicket.id == ticket_id).first()
     if not ticket:
-        raise NotFoundException("Chamado não encontrado.")
+        raise NotFoundException("Chamado nÃ£o encontrado.")
 
     if ticket.user_id != current_user.id:
         raise ForbiddenException("Acesso negado.")
@@ -274,16 +290,16 @@ async def upload_ticket_attachment(
     if ticket.status == "CLOSED":
         raise AppException(
             code="TICKET_CLOSED",
-            message="Este chamado foi encerrado e não aceita novos anexos.",
+            message="Este chamado foi encerrado e nÃ£o aceita novos anexos.",
             status_code=400
         )
 
     if file.content_type not in ALLOWED_MIME_TYPES:
-        raise BadRequestException(f"Tipo de arquivo não suportado. Tipos permitidos: {', '.join(ALLOWED_MIME_TYPES)}")
+        raise BadRequestException(f"Tipo de arquivo nÃ£o suportado. Tipos permitidos: {', '.join(ALLOWED_MIME_TYPES)}")
 
     contents = await file.read()
     if len(contents) > MAX_FILE_SIZE_BYTES:
-        raise BadRequestException("O arquivo excede o limite máximo permitido de 5MB.")
+        raise BadRequestException("O arquivo excede o limite mÃ¡ximo permitido de 5MB.")
 
     # Generate sanitized storage reference
     clean_filename = os.path.basename(file.filename or "attachment")

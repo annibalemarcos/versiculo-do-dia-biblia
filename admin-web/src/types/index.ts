@@ -367,11 +367,27 @@ export interface AppItem {
 export interface AppConfigData {
   app_id: string;
   maintenance_mode: boolean;
+  maintenance_level?: 'informational' | 'partial' | 'full';
+  maintenance_title?: string | null;
   maintenance_message: string;
+  maintenance_estimated_end?: string | null;
+  registration_enabled?: boolean;
+  purchases_enabled?: boolean;
+  premium_enabled?: boolean;
+  notifications_enabled?: boolean;
+  support_enabled?: boolean;
+  cloud_sync_enabled?: boolean;
+  devotionals_enabled?: boolean;
+  search_enabled?: boolean;
+  sharing_enabled?: boolean;
+  offline_download_enabled?: boolean;
+  google_login_enabled?: boolean;
+  updated_by?: string | null;
   minimum_supported_version: number;
   latest_version: number;
   force_update: boolean;
   store_url?: string;
+  app_mode?: string;
   custom_settings: Record<string, any>;
   updated_at: string;
 }
@@ -456,13 +472,13 @@ export interface SimulatorResult {
   estimated_monthly_total_revenue: number;
   estimated_arpu: number;
   estimated_arppu: number;
-  // Métricas de LTV (Lifetime Value)
+  // MÃ©tricas de LTV (Lifetime Value)
   subscriber_lifespan_months?: number;
   estimated_ltv_subscriber?: number;
   estimated_ltv_blended?: number;
   ltv_to_cac_ratio?: number;
   cac_payback_months?: number;
-  // Métricas de Break-even & Custos
+  // MÃ©tricas de Break-even & Custos
   monthly_fixed_costs?: number;
   monthly_estimated_costs?: number;
   break_even_subscribers_needed?: number;
@@ -485,7 +501,7 @@ export interface ComponentHealth {
   name: string;
   display_name: string;
   status: 'healthy' | 'degraded' | 'unavailable' | 'not_configured';
-  criticality?: 'CRÍTICO' | 'IMPORTANTE' | 'OPCIONAL';
+  criticality?: 'CRÃTICO' | 'IMPORTANTE' | 'OPCIONAL';
   response_time_ms?: number;
   message: string;
   last_check_at: string;
@@ -720,6 +736,3 @@ export interface UserEngagementData {
   channel_breakdown: ShareChannelBreakdown[];
   hourly_shares_trend: Array<{ hour: string; shares: number; readers: number }>;
 }
-
-
-
