@@ -143,11 +143,11 @@ def update_app_config(
 
     if body.maintenance_mode is not None:
         cfg.maintenance_mode = body.maintenance_mode
-    if body.maintenance_title is not None:
+    if "maintenance_title" in body.model_fields_set:
         cfg.maintenance_title = body.maintenance_title
     if body.maintenance_message is not None:
         cfg.maintenance_message = body.maintenance_message
-    if body.maintenance_estimated_end is not None:
+    if "maintenance_estimated_end" in body.model_fields_set:
         cfg.maintenance_estimated_end = body.maintenance_estimated_end
 
     if body.registration_enabled is not None:
