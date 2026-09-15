@@ -10,11 +10,17 @@ import com.example.core.datastore.TextScale
 import com.example.data.local.db.*
 import com.example.data.remote.*
 import com.example.data.repository.ConfigRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -59,7 +65,8 @@ class SyncManager(
     private val apiService: BibleApiService,
     private val preferencesManager: PreferencesManager,
     private val tokenManager: TokenManager,
-    private val configRepository: ConfigRepository
+    private val configRepository: ConfigRepository,
+    private val syncScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 ) {
     companion object {
         private const val TAG = "SyncManager"
@@ -67,6 +74,9 @@ class SyncManager(
 
     private val _syncState = MutableStateFlow<SyncState>(SyncState.Idle)
     val syncState: StateFlow<SyncState> = _syncState.asStateFlow()
+
+    private val syncMutex = Mutex()
+    private var activeSyncDeferred: Deferred<Boolean>? = null
 
     private val dailyVerseDao = database.dailyVerseDao()
     private val verseDao = database.verseDao()
@@ -77,7 +87,41 @@ class SyncManager(
     private val syncQueueDao = database.syncQueueDao()
     private val notificationDao = database.notificationDao()
 
-    suspend fun syncAll(isManualTrigger: Boolean = false): Boolean = withContext(Dispatchers.IO) {
+    suspend fun syncAll(isManualTrigger: Boolean = false): Boolean {
+        val deferred: Deferred<Boolean> = syncMutex.withLock {
+            val current = activeSyncDeferred
+            if (current != null && current.isActive) {
+                Log.d(TAG, "Sync already in progress. Consolidating concurrent syncAll caller into active execution.")
+                current
+            } else {
+                lateinit var newDeferred: Deferred<Boolean>
+                newDeferred = syncScope.async {
+                    try {
+                        executeSyncInternal(isManualTrigger)
+                    } finally {
+                        syncMutex.withLock {
+                            if (activeSyncDeferred === newDeferred) {
+                                activeSyncDeferred = null
+                            }
+                        }
+                    }
+                }
+                activeSyncDeferred = newDeferred
+                newDeferred
+            }
+        }
+
+        return try {
+            deferred.await()
+        } catch (c: kotlinx.coroutines.CancellationException) {
+            throw c
+        } catch (e: Exception) {
+            Log.w(TAG, "Exception while awaiting syncAll execution: ${e.message}")
+            false
+        }
+    }
+
+    private suspend fun executeSyncInternal(isManualTrigger: Boolean): Boolean = withContext(Dispatchers.IO) {
         _syncState.value = SyncState.Syncing
         Log.d(TAG, "Starting full synchronization (manual: $isManualTrigger)...")
 
@@ -170,13 +214,8 @@ class SyncManager(
 
     suspend fun syncConfig(): Boolean = withContext(Dispatchers.IO) {
         try {
-            val response = apiService.getAppConfig()
-            if (response.isSuccessful && response.body()?.data != null) {
-                configRepository.fetchRemoteConfig()
-                true
-            } else {
-                false
-            }
+            configRepository.fetchRemoteConfig()
+            configRepository.isLastFetchSuccessful
         } catch (e: Exception) {
             Log.w(TAG, "Config sync failed: ${e.message}")
             false

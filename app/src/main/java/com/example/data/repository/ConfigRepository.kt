@@ -53,10 +53,15 @@ class ConfigRepository(
     private val _appMode = MutableStateFlow(AppConfig.appMode.value)
     val appMode: StateFlow<String> = _appMode.asStateFlow()
 
+    @Volatile
+    private var _isLastFetchSuccessful = false
+    val isLastFetchSuccessful: Boolean get() = _isLastFetchSuccessful
+
     suspend fun fetchRemoteConfig(): RemoteAppConfig = withContext(Dispatchers.IO) {
         try {
             val response = apiService.getAppConfig()
             if (response.isSuccessful && response.body()?.data != null) {
+                _isLastFetchSuccessful = true
                 val dto = response.body()!!.data!!
                 val premEnabled = dto.premiumEnabled ?: (dto.features["premium_enabled"] ?: dto.features["premium_paywall"] ?: true)
                 val parsed = RemoteAppConfig(
@@ -98,9 +103,11 @@ class ConfigRepository(
                 }
                 parsed
             } else {
+                _isLastFetchSuccessful = false
                 _config.value
             }
         } catch (e: Exception) {
+            _isLastFetchSuccessful = false
             Log.d("ConfigRepository", "Using local default config fallback: ${e.message}")
             _config.value
         }

@@ -109,6 +109,7 @@ def create_campaign(
     admin = Depends(require_permission("notifications.send")),
     db: Session = Depends(get_db)
 ):
+    from app.models.notification import UserNotification
     camp = NotificationCampaign(
         app_id=body.app_id,
         title=body.title,
@@ -124,6 +125,20 @@ def create_campaign(
         failure_count=40 if not body.scheduled_at else 0
     )
     db.add(camp)
+
+    # When campaign is dispatched immediately, insert broadcast UserNotification so it reaches all users and the Android app
+    if not body.scheduled_at:
+        user_notif = UserNotification(
+            user_id=None,  # Null = Broadcast to all users
+            app_id=body.app_id,
+            title=body.title,
+            message=body.message,
+            type="campaign",
+            deep_link=body.deep_link or "daily_verse",
+            is_read=False
+        )
+        db.add(user_notif)
+
     db.commit()
     db.refresh(camp)
 

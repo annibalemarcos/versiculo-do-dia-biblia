@@ -120,7 +120,7 @@ export const UserProfilePage: React.FC = () => {
     setMetricsLoading((prev) => ({ ...prev, favorites: true }));
     setMetricsErrors((prev) => ({ ...prev, favorites: null }));
     try {
-      const res = await api.get<UserFavoriteItem[]>(`/api/v1/admin/users/${targetUserId}/favorites`);
+      const res = await api.get<UserFavoriteItem[]>(`/admin/users/${targetUserId}/favorites`);
       if (targetUserId !== currentUserIdRef.current) return;
       if (res.success && res.data) {
         setFavorites(res.data);
@@ -147,7 +147,7 @@ export const UserProfilePage: React.FC = () => {
     setMetricsLoading((prev) => ({ ...prev, devotionals: true }));
     setMetricsErrors((prev) => ({ ...prev, devotionals: null }));
     try {
-      const res = await api.get<UserDevotionalItem[]>(`/api/v1/admin/users/${targetUserId}/devotionals`);
+      const res = await api.get<UserDevotionalItem[]>(`/admin/users/${targetUserId}/devotionals`);
       if (targetUserId !== currentUserIdRef.current) return;
       if (res.success && res.data) {
         setDevotionals(res.data);
@@ -174,7 +174,7 @@ export const UserProfilePage: React.FC = () => {
     setMetricsLoading((prev) => ({ ...prev, tickets: true }));
     setMetricsErrors((prev) => ({ ...prev, tickets: null }));
     try {
-      const res = await api.get<TicketItem[]>(`/api/v1/admin/users/${targetUserId}/tickets`);
+      const res = await api.get<TicketItem[]>(`/admin/users/${targetUserId}/tickets`);
       if (targetUserId !== currentUserIdRef.current) return;
       if (res.success && res.data) {
         setTickets(res.data);
@@ -201,7 +201,7 @@ export const UserProfilePage: React.FC = () => {
     setMetricsLoading((prev) => ({ ...prev, notifications: true }));
     setMetricsErrors((prev) => ({ ...prev, notifications: null }));
     try {
-      const res = await api.get<any[]>(`/api/v1/admin/users/${targetUserId}/notifications?limit=50`);
+      const res = await api.get<any[]>(`/admin/users/${targetUserId}/notifications?limit=50`);
       if (targetUserId !== currentUserIdRef.current) return;
       if (res.success && res.data) {
         setNotifications(res.data);
@@ -229,7 +229,7 @@ export const UserProfilePage: React.FC = () => {
     setMetricsLoading((prev) => ({ ...prev, devices: true }));
     setMetricsErrors((prev) => ({ ...prev, devices: null }));
     try {
-      const res = await api.get<UserPushDeviceItem[]>(`/api/v1/admin/users/${targetUserId}/devices`);
+      const res = await api.get<UserPushDeviceItem[]>(`/admin/users/${targetUserId}/devices`);
       if (targetUserId !== currentUserIdRef.current) return;
       if (res.success && res.data) {
         setDevices(res.data);
@@ -263,7 +263,7 @@ export const UserProfilePage: React.FC = () => {
   };
 
   /**
-   * Fetches user profile from FastAPI backend /api/v1/admin/users/:userId
+   * Fetches user profile from FastAPI backend /admin/users/:userId
    */
   const fetchUser = async (targetUserId?: string) => {
     const id = targetUserId || userId;
@@ -276,7 +276,7 @@ export const UserProfilePage: React.FC = () => {
     setError(null);
 
     try {
-      const res = await api.get<any>(`/api/v1/admin/users/${id}`);
+      const res = await api.get<any>(`/admin/users/${id}`);
       if (id !== currentUserIdRef.current) return;
       if (res.success && res.data) {
         setUser(res.data);
@@ -340,7 +340,7 @@ export const UserProfilePage: React.FC = () => {
 
     try {
       if (activeTab === 'activity') {
-        const res = await api.get<UserActivityItem[]>(`/api/v1/admin/users/${targetUserId}/activity`);
+        const res = await api.get<UserActivityItem[]>(`/admin/users/${targetUserId}/activity`);
         if (targetUserId !== currentUserIdRef.current) return;
         if (res.success && res.data) {
           setTimeline(res.data);
@@ -350,7 +350,7 @@ export const UserProfilePage: React.FC = () => {
       } else if (activeTab === 'favorites') {
         await fetchFavoritesData(targetUserId);
       } else if (activeTab === 'history') {
-        const res = await api.get<UserReadingItem[]>(`/api/v1/admin/users/${targetUserId}/history?limit=50`);
+        const res = await api.get<UserReadingItem[]>(`/admin/users/${targetUserId}/history?limit=50`);
         if (targetUserId !== currentUserIdRef.current) return;
         if (res.success && res.data) {
           setHistory(res.data);
@@ -367,7 +367,7 @@ export const UserProfilePage: React.FC = () => {
       } else if (activeTab === 'devices') {
         await fetchDevicesData(targetUserId);
       } else if (activeTab === 'premium') {
-        const res = await api.get<UserEntitlementsData>(`/api/v1/admin/users/${targetUserId}/entitlements`);
+        const res = await api.get<UserEntitlementsData>(`/admin/users/${targetUserId}/entitlements`);
         if (targetUserId !== currentUserIdRef.current) return;
         if (res.success && res.data) {
           setEntitlements(res.data);

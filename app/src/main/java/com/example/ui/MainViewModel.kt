@@ -301,9 +301,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun triggerManualSync(onComplete: ((Boolean, String) -> Unit)? = null) {
         viewModelScope.launch {
             val ok = syncManager.syncAll(isManualTrigger = true)
-            try {
-                com.example.data.sync.SyncWorker.enqueueImmediateSync(getApplication(), replaceExisting = true)
-            } catch (_: Exception) {}
             val msg = when (val s = syncManager.syncState.value) {
                 is SyncState.Success -> s.message
                 is SyncState.Error -> s.message
@@ -414,10 +411,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val res = authRepository.register(name, email, pass)
             res.onSuccess {
-                try {
-                    com.example.data.sync.SyncWorker.enqueueImmediateSync(getApplication(), replaceExisting = true)
-                } catch (_: Exception) {}
-                syncManager.syncAll()
                 onResult(true, null)
             }.onFailure { error ->
                 onResult(false, error.message ?: "Erro ao realizar cadastro")
@@ -433,10 +426,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val res = authRepository.login(email, pass)
             res.onSuccess {
-                try {
-                    com.example.data.sync.SyncWorker.enqueueImmediateSync(getApplication(), replaceExisting = true)
-                } catch (_: Exception) {}
-                syncManager.syncAll()
                 onResult(true, null)
             }.onFailure { error ->
                 onResult(false, error.message ?: "Erro ao realizar login")

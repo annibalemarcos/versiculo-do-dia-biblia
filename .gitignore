@@ -274,3 +274,25 @@ __pycache__/
 # Build/cache
 .kotlin/
 .build-outputs/
+# ------------------------------------------------------------
+# ADDITIONAL LOCAL / GENERATED PROJECT FILES
+# ------------------------------------------------------------
+
+# TypeScript incremental build artifacts
+admin-web/*.tsbuildinfo
+
+# Additional local database formats
+*.sqlite
+*.sqlite3
+
+# Additional signing keys / certificates
+*.p12
+*.pfx
+*.pem
+*.key
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+!**/.env.example

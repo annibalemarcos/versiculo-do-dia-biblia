@@ -1,6 +1,6 @@
 from typing import Optional, List, Any
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 class TicketAttachmentResponse(BaseModel):
     id: str
@@ -68,13 +68,30 @@ class TicketParticipantAddRequest(BaseModel):
     admin_id: str
 
 class TicketCreateUserRequest(BaseModel):
-
-    subject: str = Field(..., min_length=3, max_length=255)
-    description: str = Field(..., min_length=5, max_length=10000)
+    subject: Optional[str] = Field(None, max_length=255)
+    title: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = Field(None, max_length=10000)
+    message: Optional[str] = Field(None, max_length=10000)
     category: str = Field("OTHER", max_length=50)  # TECHNICAL, ACCOUNT, PREMIUM_PAYMENT, ADS, CONTENT, SUGGESTION, OTHER
     priority: str = Field("NORMAL", max_length=20)  # LOW, NORMAL, HIGH, URGENT
     guest_name: Optional[str] = Field(None, max_length=150)
     guest_email: Optional[EmailStr] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            subj = data.get("subject") or data.get("title")
+            desc = data.get("description") or data.get("message")
+            if not subj or len(str(subj).strip()) < 3:
+                raise ValueError("O campo 'subject' (ou 'title') é obrigatório e deve ter no mínimo 3 caracteres.")
+            if not desc or len(str(desc).strip()) < 5:
+                raise ValueError("O campo 'description' (ou 'message') é obrigatório e deve ter no mínimo 5 caracteres.")
+            data["subject"] = str(subj).strip()
+            data["title"] = str(subj).strip()
+            data["description"] = str(desc).strip()
+            data["message"] = str(desc).strip()
+        return data
 
 class TicketUpdateAdminRequest(BaseModel):
     status: Optional[str] = None  # OPEN, IN_PROGRESS, WAITING_USER, RESOLVED, CLOSED
