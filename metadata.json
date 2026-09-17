@@ -1,0 +1,8 @@
+{
+  "name": "Versículo do Dia",
+  "description": "Aplicativo bíblico nativo com versículo diário, devocionais, temas, emoções, favoritos e sincronização.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
